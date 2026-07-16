@@ -2,14 +2,15 @@ package fr.louison.gestionsallespringapi.room.model;
 
 import fr.louison.gestionsallespringapi.equipment.model.EquipmentEntity;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity(name = "room")
 public class RoomEntity {
 
@@ -30,4 +31,14 @@ public class RoomEntity {
             inverseJoinColumns = @JoinColumn(name = "id_equipment")
     )
     private List<EquipmentEntity> equipments = new ArrayList<>();
+
+    public void addEquipment(EquipmentEntity equipment) {
+        equipments.add(equipment);
+        equipment.getRooms().add(this);
+    }
+
+    public void removeEquipment(EquipmentEntity equipment) {
+        equipments.remove(equipment);
+        equipment.getRooms().remove(this);
+    }
 }
