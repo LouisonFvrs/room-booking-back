@@ -8,6 +8,7 @@ import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import fr.louison.gestionsallespringapi.room.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -84,5 +85,22 @@ public class EquipmentService {
                 .build();
 
         return equipmentRepository.save(equipment);
+    }
+
+    public ResponseEntity<String> deleteEquipment(Long id) {
+
+        EquipmentEntity equipment = equipmentRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Equipement introuvable"));
+
+        List<RoomEntity> rooms = roomRepository.findByEquipmentsContaining(equipment);
+
+        for  (RoomEntity room : rooms) {
+            room.getEquipments().remove(equipment);
+            roomRepository.save(room);
+        }
+
+        equipmentRepository.delete(equipment);
+
+        return ResponseEntity.ok("Équipement supprimé");
     }
 }

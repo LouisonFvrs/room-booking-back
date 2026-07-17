@@ -6,6 +6,7 @@ import fr.louison.gestionsallespringapi.equipment.service.EquipmentService;
 import fr.louison.gestionsallespringapi.room.dto.RoomDto;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,5 +47,10 @@ public class EquipmentController {
                         .toList()
                 )
                 .build();
+    }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<String> delete(@PathVariable Long id) throws Exception {
+        return equipmentService.deleteEquipment(id);
     }
 }
