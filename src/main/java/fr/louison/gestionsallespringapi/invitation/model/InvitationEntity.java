@@ -4,11 +4,13 @@ import fr.louison.gestionsallespringapi.booking.model.BookingEntity;
 import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 @Data
 @Builder
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity(name = "invitation")
 public class InvitationEntity {
 
@@ -17,13 +19,14 @@ public class InvitationEntity {
     private Long idInvitation;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private InvitationStatus status;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_booking",  nullable = false)
     private BookingEntity booking;
 
-    @ManyToOne
-    @JoinColumn(name = "id_attendee")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_attendee", nullable = false)
     private EmployeeEntity employeeAttendee;
 }
