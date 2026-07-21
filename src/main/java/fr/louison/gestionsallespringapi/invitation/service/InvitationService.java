@@ -21,9 +21,6 @@ public class InvitationService {
     @Autowired
     private BookingRepository bookingRepository;
 
-    @Autowired
-    private EmployeeRepository employeeRepository;
-
     public List<InvitationDto.PostOutputDto> getInvitationsByBooking(Long id) throws Exception {
 
         bookingRepository.findById(id)
@@ -40,23 +37,6 @@ public class InvitationService {
                         .build()
                 )
                 .toList();
-    }
-
-    public InvitationEntity createInvitation(InvitationDto.PostInputDto invitationDto) throws Exception {
-
-        BookingEntity booking = bookingRepository.findById(invitationDto.getBookingId())
-                .orElseThrow(() -> new Exception("Booking not found"));
-
-        EmployeeEntity employee = employeeRepository.findById(invitationDto.getAttendeeId())
-                .orElseThrow(() -> new Exception("Employee not found"));
-
-        InvitationEntity invitation = InvitationEntity.builder()
-                .status(InvitationStatus.PENDING)
-                .booking(booking)
-                .employeeAttendee(employee)
-                .build();
-
-        return invitationRepository.save(invitation);
     }
 
     public InvitationEntity updateInvitation(Long id, InvitationDto.PutInputDto invitationDto) throws Exception {

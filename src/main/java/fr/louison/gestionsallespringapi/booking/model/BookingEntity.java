@@ -6,16 +6,19 @@ import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity(name = "booking")
 public class BookingEntity {
 
@@ -46,6 +49,7 @@ public class BookingEntity {
     @JoinColumn(name = "id_recurrence")
     private RecurrenceEntity recurrence;
 
-    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<InvitationEntity> invitations = new ArrayList<>();
 }

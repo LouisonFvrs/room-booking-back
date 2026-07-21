@@ -8,7 +8,6 @@ import lombok.*;
 
 @Data
 @Builder
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity(name = "invitation")
