@@ -6,6 +6,11 @@ import fr.louison.gestionsallespringapi.invitation.service.InvitationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Role;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,19 +22,23 @@ public class InvitationController {
     @Autowired
     private InvitationService invitationService;
 
-    @GetMapping("/{id}")
-    public List<InvitationDto.PostOutputDto> getInvitationsByBooking(@PathVariable Long id) throws Exception {
-        return invitationService.getInvitationsByBooking(id);
+    @GetMapping("/booking/{bookingId}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<Page<InvitationDto.PostOutputDto>> getInvitationsByBooking(
+            @PageableDefault(size = 20, page = 0) Pageable pageable,
+            @PathVariable Long bookingId
+    ) {
+        Page<InvitationDto.PostOutputDto> invitations = invitationService.getInvitationsByBooking(pageable, bookingId);
+        return ResponseEntity.ok(invitations);
     }
 
     @PutMapping("/{id}")
-    public InvitationDto.PostOutputDto updateInvitation(@Valid @RequestBody InvitationDto.PutInputDto invitationDto, @PathVariable Long id) throws Exception {
-        InvitationEntity invitation = invitationService.updateInvitation(id, invitationDto);
-        return InvitationDto.PostOutputDto.builder()
-                .id(invitation.getIdInvitation())
-                .status(invitation.getStatus())
-                .booking(invitation.getBooking())
-                .attendee(invitation.getEmployeeAttendee())
-                .build();
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<InvitationDto.PostOutputDto> updateInvitation(
+            @PathVariable Long id,
+            @Valid @RequestBody InvitationDto.PutInputDto invitationDto
+    ) {
+        InvitationDto.PostOutputDto updatedInvitation = invitationService.updateInvitation(id, invitationDto);
+        return ResponseEntity.ok(updatedInvitation);
     }
 }

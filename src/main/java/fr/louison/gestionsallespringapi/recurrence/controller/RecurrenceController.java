@@ -6,6 +6,9 @@ import fr.louison.gestionsallespringapi.recurrence.repository.RecurrenceReposito
 import fr.louison.gestionsallespringapi.recurrence.service.RecurrenceService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,19 +21,17 @@ public class RecurrenceController {
     private RecurrenceService recurrenceService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
     public List<RecurrenceDto.PostOutputDto> get() {
         return recurrenceService.getRecurrences();
     }
 
-    @PostMapping("/create")
-    public RecurrenceDto.PostOutputDto create(@Valid @RequestBody RecurrenceDto.PostInputDto  postInputDto) {
-        RecurrenceEntity recurrence = recurrenceService.createRecurrence(postInputDto);
-
-        return RecurrenceDto.PostOutputDto.builder()
-                .id(recurrence.getIdRecurrence())
-                .type(recurrence.getType())
-                .intervalValue(recurrence.getIntervalValue())
-                .endDate(recurrence.getEndDate())
-                .build();
+    @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<RecurrenceDto.PostOutputDto> create(
+            @Valid @RequestBody RecurrenceDto.PostInputDto postInputDto
+    ) {
+        RecurrenceDto.PostOutputDto createdRecurrence = recurrenceService.createRecurrence(postInputDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdRecurrence);
     }
 }

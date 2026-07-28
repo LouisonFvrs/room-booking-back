@@ -5,7 +5,9 @@ import fr.louison.gestionsallespringapi.department.model.DepartmentEntity;
 import fr.louison.gestionsallespringapi.department.service.DepartmentService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,22 +20,23 @@ public class DepartmentController {
     private DepartmentService departmentService;
 
     @GetMapping
-    public List<DepartmentDto.PostOutputDto> get() {
-        return departmentService.getDepartments();
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<List<DepartmentDto.PostOutputDto>> getDepartments() {
+        List<DepartmentDto.PostOutputDto> departments = departmentService.getDepartments();
+        return ResponseEntity.ok(departments);
     }
 
-    @PostMapping("/create")
-    public DepartmentDto.PostOutputDto create(@Valid @RequestBody DepartmentDto.PostInputDto departmentDto) {
-        DepartmentEntity department = departmentService.createDepartment(departmentDto);
-
-        return DepartmentDto.PostOutputDto.builder()
-                .id(department.getIdDepartment())
-                .name(department.getName())
-                .build();
+    @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<DepartmentDto.PostOutputDto> create(@Valid @RequestBody DepartmentDto.PostInputDto departmentDto) {
+        DepartmentDto.PostOutputDto createdDepartment = departmentService.createDepartment(departmentDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdDepartment);
     }
 
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id){
-        return departmentService.deleteDepartment(id);
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        departmentService.deleteDepartment(id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -3,15 +3,21 @@ package fr.louison.gestionsallespringapi.room.service;
 import fr.louison.gestionsallespringapi.equipment.dto.EquipmentDto;
 import fr.louison.gestionsallespringapi.equipment.model.EquipmentEntity;
 import fr.louison.gestionsallespringapi.equipment.repository.EquipmentRepository;
+import fr.louison.gestionsallespringapi.exception.BadRequestException;
+import fr.louison.gestionsallespringapi.exception.RessourceConflictException;
+import fr.louison.gestionsallespringapi.exception.RessourceNotFoundException;
 import fr.louison.gestionsallespringapi.room.dto.RoomDto;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import fr.louison.gestionsallespringapi.room.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,116 +31,115 @@ public class RoomService {
     @Autowired
     private EquipmentRepository equipmentRepository;
 
-    public List<RoomDto.PostOutputDto> findAll() {
-        List<RoomEntity> rooms = roomRepository.findAll();
+    public Page<RoomDto.PostOutputDto> findAll(Pageable pageable) {
+        Page<RoomEntity> rooms = roomRepository.findAll(pageable);
 
-        return rooms.stream()
-                .map(room -> RoomDto.PostOutputDto.builder()
-                        .idRoom(room.getIdRoom())
-                        .name(room.getName())
-                        .capacity(room.getCapacity())
-                        .isAvailable(room.isAvailable())
-                        .equipments(room.getEquipments().stream()
-                                .map(equipment -> EquipmentDto.SimpleDto.builder()
-                                        .idEquipment(equipment.getIdEquipment())
-                                        .name(equipment.getName())
-                                        .serialNumber(equipment.getSerialNumber())
-                                        .build()
-                                )
-                                .toList()
-                        )
-                        .build()
-                )
-                .collect(Collectors.toList());
+        return rooms.map(this::mapToPostOutputDto);
     }
 
-    public List<RoomDto.PostOutputDto> findAllByIsAvailableTrue() {
-        List<RoomEntity> rooms = roomRepository.findByIsAvailableTrue();
+    public Page<RoomDto.PostOutputDto> findAllByIsAvailableTrue(Pageable pageable) {
+        Page<RoomEntity> availableRooms = roomRepository.findByIsAvailableTrue(pageable);
 
-        return rooms.stream()
-                .map(room ->  RoomDto.PostOutputDto.builder()
-                        .idRoom(room.getIdRoom())
-                        .name(room.getName())
-                        .capacity(room.getCapacity())
-                        .isAvailable(room.isAvailable())
-                        .equipments(room.getEquipments().stream()
-                                .map(equipment -> EquipmentDto.SimpleDto.builder()
-                                        .idEquipment(equipment.getIdEquipment())
-                                        .name(equipment.getName())
-                                        .serialNumber(equipment.getSerialNumber())
-                                        .build()
-                                )
-                                .toList()
-                        )
-                        .build()
-                )
-                .collect(Collectors.toList());
+        return availableRooms.map(this::mapToPostOutputDto);
     }
 
     public RoomDto.PostOutputDto findByIdRoom(Long idRoom) {
+        RoomEntity room = roomRepository.findById(idRoom)
+                .orElseThrow(() -> new RessourceNotFoundException("La salle est introuvable avec l'ID : " + idRoom));
+
+        return mapToPostOutputDto(room);
+    }
+
+    public RoomDto.PostOutputDto createRoom(RoomDto.PostInputDto postInputDto) {
+
+        if (roomRepository.existsByName(postInputDto.getName())) {
+            throw new RessourceConflictException("Une salle nommée '" + postInputDto.getName() + "' existe déjà.");
+        }
+
+        List<EquipmentEntity> equipments = new ArrayList<>();
+        if (postInputDto.getEquipmentIds() != null && !postInputDto.getEquipmentIds().isEmpty()) {
+            equipments = equipmentRepository.findAllById(postInputDto.getEquipmentIds());
+
+            if (equipments.size() != postInputDto.getEquipmentIds().size()) {
+                throw new RessourceNotFoundException("Un ou plusieurs équipements spécifiés sont introuvables.");
+            }
+        }
+
+        RoomEntity roomEntity = RoomEntity.builder()
+                .name(postInputDto.getName())
+                .capacity(postInputDto.getCapacity())
+                .isAvailable(true)
+                .equipments(equipments)
+                .build();
+
+        RoomEntity savedRoom = roomRepository.save(roomEntity);
+
+        return mapToPostOutputDto(savedRoom);
+    }
+
+    public void deleteById(Long id) {
+        RoomEntity room = roomRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("La salle est introuvable avec l'ID : " + id));
+
+        roomRepository.delete(room);
+    }
+
+    @Transactional
+    public RoomDto.PostOutputDto assignEquipmentToRoom(Long idRoom, Long idEquipment) {
 
         RoomEntity room = roomRepository.findById(idRoom)
-                .orElseThrow(() -> new EntityNotFoundException("La salle n'existe pas"));
+                .orElseThrow(() -> new RessourceNotFoundException("La salle est introuvable avec l'ID : " + idRoom));
+
+        EquipmentEntity equipment = equipmentRepository.findById(idEquipment)
+                .orElseThrow(() -> new RessourceNotFoundException("L'équipement est introuvable avec l'ID : " + idEquipment));
+
+        if (room.getEquipments().contains(equipment)) {
+            throw new RessourceConflictException("L'équipement '" + equipment.getName() + "' est déjà associé à cette salle.");
+        }
+
+        room.getEquipments().add(equipment);
+        RoomEntity updatedRoom = roomRepository.save(room);
+
+        return mapToPostOutputDto(updatedRoom);
+    }
+
+    @Transactional
+    public RoomDto.PostOutputDto removeEquipmentFromRoom(Long idRoom, Long idEquipment) {
+
+        RoomEntity room = roomRepository.findById(idRoom)
+                .orElseThrow(() -> new RessourceNotFoundException("La salle est introuvable avec l'ID : " + idRoom));
+
+        EquipmentEntity equipment = equipmentRepository.findById(idEquipment)
+                .orElseThrow(() -> new RessourceNotFoundException("L'équipement est introuvable avec l'ID : " + idEquipment));
+
+        if (!room.getEquipments().contains(equipment)) {
+            throw new BadRequestException("L'équipement '" + equipment.getName() + "' n'est pas associé à cette salle.");
+        }
+
+        room.getEquipments().remove(equipment);
+        RoomEntity updatedRoom = roomRepository.save(room);
+
+        return mapToPostOutputDto(updatedRoom);
+    }
+
+    // Méthode helper privée réutilisable dans tout le service
+    private RoomDto.PostOutputDto mapToPostOutputDto(RoomEntity room) {
+        List<EquipmentDto.SimpleDto> equipmentsDto = room.getEquipments() != null
+                ? room.getEquipments().stream()
+                  .map(equipment -> EquipmentDto.SimpleDto.builder()
+                                    .idEquipment(equipment.getIdEquipment())
+                                    .name(equipment.getName())
+                                    .serialNumber(equipment.getSerialNumber())
+                                    .build())
+                  .toList()
+                : Collections.emptyList();
 
         return RoomDto.PostOutputDto.builder()
                 .idRoom(room.getIdRoom())
                 .name(room.getName())
                 .capacity(room.getCapacity())
                 .isAvailable(room.isAvailable())
-                .equipments(room.getEquipments().stream()
-                        .map(equipment -> EquipmentDto.SimpleDto.builder()
-                                .idEquipment(equipment.getIdEquipment())
-                                .name(equipment.getName())
-                                .serialNumber(equipment.getSerialNumber())
-                                .build()
-                        )
-                        .toList()
-                )
+                .equipments(equipmentsDto)
                 .build();
-    }
-
-    public RoomEntity createRoom(RoomDto.PostInputDto postInputDto) {
-
-        List<EquipmentEntity> equipments = new ArrayList<EquipmentEntity>();
-
-        if (postInputDto.getEquipmentIds() != null && !postInputDto.getEquipmentIds().isEmpty()) {
-            equipments = equipmentRepository.findAllById(postInputDto.getEquipmentIds());
-        }
-
-        RoomEntity roomEntity = RoomEntity.builder()
-                .name(postInputDto.getName()).
-                capacity(postInputDto.getCapacity())
-                .isAvailable(true)
-                .equipments(equipments)
-                .build();
-
-        return roomRepository.save(roomEntity);
-    }
-
-    public void deleteById(Long id) {
-        roomRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Salle non trouvé !"));
-
-        roomRepository.deleteById(id);
-    }
-
-    public void assignEquipmentToRoom(Long idRoom, Long idEquipment) throws Exception {
-        EquipmentEntity equipment = equipmentRepository.findById(idEquipment)
-                .orElseThrow(() -> new Exception("Equipement non trouvé"));
-
-        RoomEntity room = roomRepository.findById(idRoom)
-                .orElseThrow(() -> new Exception("Salle non trouvé"));
-
-        room.addEquipment(equipment);
-    }
-
-    public void removeEquipmentFromRoom(Long idRoom, Long idEquipment) throws Exception {
-        EquipmentEntity equipment = equipmentRepository.findById(idEquipment)
-                .orElseThrow(() -> new Exception("Equipement non trouvé"));
-
-        RoomEntity room = roomRepository.findById(idRoom)
-                .orElseThrow(() -> new Exception("Salle non trouvé"));
-
-        room.removeEquipment(equipment);
     }
 }

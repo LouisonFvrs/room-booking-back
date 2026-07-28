@@ -6,7 +6,13 @@ import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import fr.louison.gestionsallespringapi.room.service.RoomService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,56 +25,62 @@ public class RoomController {
     private RoomService roomService;
 
     @GetMapping
-    public List<RoomDto.PostOutputDto> get() {
-        return roomService.findAll();
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<Page<RoomDto.PostOutputDto>> getAllRooms(
+            @PageableDefault(size = 20, page = 0, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<RoomDto.PostOutputDto> pages = roomService.findAll(pageable);
+        return ResponseEntity.ok(pages);
     }
 
     @GetMapping("/available")
-    public List<RoomDto.PostOutputDto> getAvailable() {
-        return roomService.findAllByIsAvailableTrue();
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<Page<RoomDto.PostOutputDto>> getAvailableRooms(
+            @PageableDefault(size = 20, page = 0, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<RoomDto.PostOutputDto> rooms = roomService.findAllByIsAvailableTrue(pageable);
+        return ResponseEntity.ok(rooms);
     }
 
     @GetMapping("/{id}")
-    public RoomDto.PostOutputDto get(@PathVariable Long id) {
-        return roomService.findByIdRoom(id);
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<RoomDto.PostOutputDto> getRoomById(@PathVariable Long id) {
+        RoomDto.PostOutputDto room = roomService.findByIdRoom(id);
+        return ResponseEntity.ok(room);
     }
 
-    @PostMapping("/create")
-    public RoomDto.PostOutputDto create(@Valid @RequestBody RoomDto.PostInputDto postInputDto) {
-        RoomEntity roomEntity = roomService.createRoom(postInputDto);
-
-        return RoomDto.PostOutputDto.builder()
-                .idRoom(roomEntity.getIdRoom())
-                .name(roomEntity.getName())
-                .capacity(roomEntity.getCapacity())
-                .isAvailable(roomEntity.isAvailable())
-                .equipments(roomEntity.getEquipments().stream()
-                        .map(equipment -> EquipmentDto.SimpleDto.builder()
-                                .idEquipment(equipment.getIdEquipment())
-                                .name(equipment.getName())
-                                .serialNumber(equipment.getSerialNumber())
-                                .build()
-                        )
-                        .toList()
-                )
-                .build();
+    @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<RoomDto.PostOutputDto> createRoom(
+            @Valid @RequestBody RoomDto.PostInputDto postInputDto
+    ) {
+        RoomDto.PostOutputDto createdRoom = roomService.createRoom(postInputDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdRoom);
     }
 
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Void> deleteRoom(@PathVariable Long id) {
         roomService.deleteById(id);
-        return ResponseEntity.ok("La salle à bien été supprimé");
+        return ResponseEntity.noContent().build();
     }
-
     @PutMapping("/{idRoom}/equipments/{idEquipment}")
-    public ResponseEntity<String> assignEquipment(@PathVariable Long idRoom, @PathVariable Long idEquipment) throws Exception {
-        roomService.assignEquipmentToRoom(idRoom, idEquipment);
-        return ResponseEntity.ok("Équipement ajouté");
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<RoomDto.PostOutputDto> assignEquipment(
+            @PathVariable Long idRoom,
+            @PathVariable Long idEquipment
+    ) {
+        RoomDto.PostOutputDto updatedRoom = roomService.assignEquipmentToRoom(idRoom, idEquipment);
+        return ResponseEntity.ok(updatedRoom);
     }
 
     @DeleteMapping("/{idRoom}/equipments/{idEquipment}")
-    public ResponseEntity<String> removeEquipmentFromRoom(@PathVariable Long idRoom, @PathVariable Long idEquipment) throws Exception {
-        roomService.removeEquipmentFromRoom(idRoom, idEquipment);
-        return ResponseEntity.ok("Équipement retiré");
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<RoomDto.PostOutputDto> removeEquipmentFromRoom(
+            @PathVariable Long idRoom,
+            @PathVariable Long idEquipment
+    ) {
+        RoomDto.PostOutputDto updatedRoom = roomService.removeEquipmentFromRoom(idRoom, idEquipment);
+        return ResponseEntity.ok(updatedRoom);
     }
 }

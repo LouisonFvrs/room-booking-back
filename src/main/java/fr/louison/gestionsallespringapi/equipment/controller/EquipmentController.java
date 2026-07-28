@@ -5,8 +5,16 @@ import fr.louison.gestionsallespringapi.equipment.model.EquipmentEntity;
 import fr.louison.gestionsallespringapi.equipment.service.EquipmentService;
 import fr.louison.gestionsallespringapi.room.dto.RoomDto;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
+import org.hibernate.engine.jdbc.Size;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,38 +27,35 @@ public class EquipmentController {
     private EquipmentService equipmentService;
 
     @GetMapping
-    public List<EquipmentDto.PostOutputDto> get() {
-        return equipmentService.findAll();
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<Page<EquipmentDto.PostOutputDto>> getAllEquipments(
+            @PageableDefault(page = 0, size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<EquipmentDto.PostOutputDto> equipments = equipmentService.findAll(pageable);
+        return ResponseEntity.ok(equipments);
     }
 
     @GetMapping("/{id}")
-    public EquipmentDto.PostOutputDto get(@PathVariable Long id) throws Exception {
-        return equipmentService.findById(id);
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<EquipmentDto.PostOutputDto> getEquipmentById(@PathVariable Long id) {
+        EquipmentDto.PostOutputDto equipment = equipmentService.findById(id);
+        return ResponseEntity.ok(equipment);
     }
 
 
-    @PostMapping("/create")
-    public EquipmentDto.PostOutputDto create(@RequestBody EquipmentDto.PostInputDto inputDto) {
-        EquipmentEntity equipment = equipmentService.createEquipment(inputDto);
-        return EquipmentDto.PostOutputDto.builder()
-                .idEquipment(equipment.getIdEquipment())
-                .name(equipment.getName())
-                .serialNumber(equipment.getSerialNumber())
-                .rooms(equipment.getRooms().stream()
-                        .map(room -> RoomDto.SimpleDto.builder()
-                                .idRoom(room.getIdRoom())
-                                .name(room.getName())
-                                .capacity(room.getCapacity())
-                                .isAvailable(room.isAvailable())
-                                .build()
-                        )
-                        .toList()
-                )
-                .build();
+    @PostMapping
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<EquipmentDto.PostOutputDto> createEquipment(
+            @Valid @RequestBody EquipmentDto.PostInputDto inputDto
+    ) {
+        EquipmentDto.PostOutputDto createdEquipment = equipmentService.createEquipment(inputDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdEquipment);
     }
 
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> delete(@PathVariable Long id) throws Exception {
-        return equipmentService.deleteEquipment(id);
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Void> deleteEquipment(@PathVariable Long id) {
+        equipmentService.deleteEquipment(id);
+        return ResponseEntity.noContent().build();
     }
 }

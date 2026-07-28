@@ -3,15 +3,21 @@ package fr.louison.gestionsallespringapi.equipment.service;
 import fr.louison.gestionsallespringapi.equipment.dto.EquipmentDto;
 import fr.louison.gestionsallespringapi.equipment.model.EquipmentEntity;
 import fr.louison.gestionsallespringapi.equipment.repository.EquipmentRepository;
+import fr.louison.gestionsallespringapi.exception.RessourceConflictException;
+import fr.louison.gestionsallespringapi.exception.RessourceNotFoundException;
 import fr.louison.gestionsallespringapi.room.dto.RoomDto;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import fr.louison.gestionsallespringapi.room.repository.RoomRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,58 +30,32 @@ public class EquipmentService {
     @Autowired
     private RoomRepository roomRepository;
 
-    public List<EquipmentDto.PostOutputDto> findAll() {
-        List<EquipmentEntity> equipments = equipmentRepository.findAll();
+    public Page<EquipmentDto.PostOutputDto> findAll(Pageable pageable) {
+        Page<EquipmentEntity> equipmentPage = equipmentRepository.findAll(pageable);
 
-        return equipments.stream()
-                .map(equipment -> EquipmentDto.PostOutputDto.builder()
-                        .idEquipment(equipment.getIdEquipment())
-                        .name(equipment.getName())
-                        .serialNumber(equipment.getSerialNumber())
-                        .rooms(equipment.getRooms().stream()
-                                // On map chaque RoomEntity en RoomDto.SimpleDto
-                                .map(room -> RoomDto.SimpleDto.builder()
-                                        .idRoom(room.getIdRoom())
-                                        .name(room.getName())
-                                        .capacity(room.getCapacity())
-                                        .isAvailable(room.isAvailable())
-                                        .build()
-                                )
-                                .toList()
-                        )
-                        .build()
-                )
-                .toList();
+        return equipmentPage.map(this::mapToPostOutputDto);
     }
 
-    public EquipmentDto.PostOutputDto findById(Long id) throws Exception {
-
+    public EquipmentDto.PostOutputDto findById(Long id) {
         EquipmentEntity equipment = equipmentRepository.findById(id)
-                .orElseThrow(() -> new Exception("Équipement non trouvé"));
+                .orElseThrow(() -> new RessourceNotFoundException("Équipement introuvable avec l'ID : " + id));
 
-        return EquipmentDto.PostOutputDto.builder()
-                .idEquipment(equipment.getIdEquipment())
-                .name(equipment.getName())
-                .serialNumber(equipment.getSerialNumber())
-                .rooms(equipment.getRooms().stream()
-                        .map(room -> RoomDto.SimpleDto.builder()
-                                .idRoom(room.getIdRoom())
-                                .name(room.getName())
-                                .capacity(room.getCapacity())
-                                .isAvailable(room.isAvailable())
-                                .build()
-                        )
-                        .toList()
-                )
-                .build();
+        return mapToPostOutputDto(equipment);
     }
 
-    public EquipmentEntity createEquipment(EquipmentDto.PostInputDto inputDto) {
+    public EquipmentDto.PostOutputDto createEquipment(EquipmentDto.PostInputDto inputDto) {
 
-        List<RoomEntity> rooms = new ArrayList<RoomEntity>();
+        if (inputDto.getSerialNumber() != null && equipmentRepository.existsBySerialNumber(inputDto.getSerialNumber())) {
+            throw new RessourceConflictException("Un équipement avec le numéro de série '" + inputDto.getSerialNumber() + "' existe déjà.");
+        }
 
-        if(inputDto.getRoomIds() != null && !inputDto.getRoomIds().isEmpty()) {
+        List<RoomEntity> rooms = new ArrayList<>();
+        if (inputDto.getRoomIds() != null && !inputDto.getRoomIds().isEmpty()) {
             rooms = roomRepository.findAllById(inputDto.getRoomIds());
+
+            if (rooms.size() != inputDto.getRoomIds().size()) {
+                throw new RessourceNotFoundException("Une ou plusieurs salles spécifiées sont introuvables.");
+            }
         }
 
         EquipmentEntity equipment = EquipmentEntity.builder()
@@ -84,23 +64,39 @@ public class EquipmentService {
                 .rooms(rooms)
                 .build();
 
-        return equipmentRepository.save(equipment);
+        EquipmentEntity savedEquipment = equipmentRepository.save(equipment);
+
+        return mapToPostOutputDto(savedEquipment);
     }
 
-    public ResponseEntity<String> deleteEquipment(Long id) {
+    @Transactional
+    public void deleteEquipment(Long id) {
 
         EquipmentEntity equipment = equipmentRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Equipement introuvable"));
+                .orElseThrow(() -> new RessourceNotFoundException("Équipement introuvable avec l'ID : " + id));
 
-        List<RoomEntity> rooms = roomRepository.findByEquipmentsContaining(equipment);
-
-        for  (RoomEntity room : rooms) {
-            room.getEquipments().remove(equipment);
-            roomRepository.save(room);
+        if (equipment.getRooms() != null) {
+            for (RoomEntity room : equipment.getRooms()) {
+                room.getEquipments().remove(equipment);
+            }
         }
-
         equipmentRepository.delete(equipment);
+    }
 
-        return ResponseEntity.ok("Équipement supprimé");
+    // Méthode helper privée réutilisable
+    private EquipmentDto.PostOutputDto mapToPostOutputDto(EquipmentEntity equipment) {
+        return EquipmentDto.PostOutputDto.builder()
+                .idEquipment(equipment.getIdEquipment())
+                .name(equipment.getName())
+                .serialNumber(equipment.getSerialNumber())
+                .rooms(equipment.getRooms() != null ? equipment.getRooms().stream()
+                                                      .map(room -> RoomDto.SimpleDto.builder()
+                                                                   .idRoom(room.getIdRoom())
+                                                                   .name(room.getName())
+                                                                   .capacity(room.getCapacity())
+                                                                   .isAvailable(room.isAvailable())
+                                                                   .build())
+                                                      .toList() : Collections.emptyList())
+                .build();
     }
 }

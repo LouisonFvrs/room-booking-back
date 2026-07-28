@@ -10,6 +10,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 public class InvitationDto {
 
     @Data
@@ -32,8 +34,30 @@ public class InvitationDto {
     public static class PostOutputDto {
         private Long id;
         private InvitationStatus status;
-        private BookingEntity booking;
-        private EmployeeEntity attendee;
+        private BookingSimpleDto booking;
+        private EmployeeSimpleDto attendee;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class BookingSimpleDto {
+        private Long idBooking;
+        private LocalDateTime startTime;
+        private LocalDateTime endTime;
+    }
+
+    // DTO court pour l'invité
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    public static class EmployeeSimpleDto {
+        private Long idEmployee;
+        private String firstName;
+        private String lastName;
+        private String email;
     }
 
     @Data
