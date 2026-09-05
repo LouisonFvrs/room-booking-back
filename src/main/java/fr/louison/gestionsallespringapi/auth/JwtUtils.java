@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtils {
 
-    @Value("${jwt.secret:MaClefSecreteUltraSecuriseeQuiFaitAuMoins32Caracteres!}")
+    @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${jwt.expiration-ms:86400000}")

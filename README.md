@@ -42,19 +42,54 @@ API REST Backend développée avec **Spring Boot** dédiée à la gestion des r�
 
 ---
 
-## 📌 Statut du Projet
+## 🐳 Installation et Démarrage avec Docker (recommandé)
 
-> ⚠️ **Projet en cours de développement (Phase Backend)**
-> 
-> - [x] Architecture globale & couche de persistance
-> - [x] Sécurisation de l'API & Authentification par Token
-> - [x] Endpoints REST & Logique métier (Salles & Réservations)
-> - [x] Gestion centralisée des exceptions
-> - [ ] Intégration du Frontend dédié (Angular - *À venir*)
+### Prérequis
+- **Docker** et **Docker Compose** installés ([Docker Desktop](https://www.docker.com/products/docker-desktop/) inclut les deux)
+
+### Étapes
+
+1. **Cloner le dépôt** :
+```bash
+   git clone https://github.com/LouisonFvrs/gestionSalleSpringApi.git
+   cd gestionSalleSpringApi
+```
+
+2. **Configurer les variables d'environnement** :
+```bash
+   cp .env.example .env
+```
+Puis éditer `.env` pour renseigner un mot de passe PostgreSQL et une clé secrète JWT (voir section [Génération de la clé JWT](#génération-de-la-clé-jwt) ci-dessous).
+
+3. **Lancer l'application** :
+```bash
+   docker compose up --build
+```
+Cette commande construit l'image de l'API, démarre un conteneur PostgreSQL, puis démarre l'application. Les tables sont créées automatiquement au premier lancement.
+
+4. **Accéder à l'API** :
+   L'API est disponible sur `http://localhost:8080`.
+
+### Commandes utiles
+
+| Commande | Description |
+|---|---|
+| `docker compose up --build -d` | Lance en arrière-plan |
+| `docker compose logs -f` | Suit les logs en temps réel |
+| `docker compose down` | Arrête les conteneurs |
+| `docker compose down -v` | Arrête et supprime les données PostgreSQL |
+
+### Génération de la clé JWT
+
+La variable `JWT_SECRET` doit faire au moins 256 bits pour un algorithme HS256. Génère-en une avec :
+```bash
+openssl rand -base64 32
+```
+Colle le résultat dans `.env` sans la commiter (le fichier `.env` est ignoré par git).
 
 ---
 
-## 💻 Installation et Démarrage Local
+## 💻 Installation et Démarrage Local (sans Docker)
 
 ### Prérequis
 - **Java JDK 17** ou supérieur
@@ -64,6 +99,7 @@ API REST Backend développée avec **Spring Boot** dédiée à la gestion des r�
 ### Étapes
 
 1. **Cloner le dépôt** :
-   ```bash
-   git clone [https://github.com/LouisonFvrs/gestionSalleSpringApi.git](https://github.com/LouisonFvrs/gestionSalleSpringApi.git)
+```bash
+   git clone https://github.com/LouisonFvrs/gestionSalleSpringApi.git
    cd gestionSalleSpringApi
+```
