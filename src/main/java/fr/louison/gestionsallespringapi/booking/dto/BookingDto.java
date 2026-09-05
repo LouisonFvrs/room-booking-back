@@ -6,6 +6,7 @@ import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,6 +24,7 @@ public class BookingDto {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
+    @Schema(name = "BookingDto_PostInputDto", description = "DTO pour la création d'une réservation")
     public static class PostInputDto {
 
         @NotNull
@@ -54,6 +56,7 @@ public class BookingDto {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
+    @Schema(name = "BookingDto_PostOutputDto", description = "DTO pour la réponse à la création d'une réservation")
     public static class PostOutputDto {
         private Long id;
         private String title;
@@ -71,17 +74,20 @@ public class BookingDto {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @Schema(name = "BookingDto_RoomSummaryDto")
     public static class RoomSummaryDto { private Long id; private String name; }
 
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @Schema(name = "BookingDto_EmployeeSummaryDto")
     public static class EmployeeSummaryDto { private Long id; private String firstName; private String lastName; }
 
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @Schema(name = "BookingDto_InvitationSummaryDto")
     public static class InvitationSummaryDto { private Long id; private InvitationStatus status; private Long attendeeId; }
 }

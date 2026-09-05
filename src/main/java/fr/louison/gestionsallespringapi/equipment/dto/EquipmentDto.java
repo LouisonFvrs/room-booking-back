@@ -2,6 +2,7 @@ package fr.louison.gestionsallespringapi.equipment.dto;
 
 import fr.louison.gestionsallespringapi.room.dto.RoomDto;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ public class EquipmentDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(name = "EquipmentDto_SimpleDto")
     public static class SimpleDto {
         private Long idEquipment;
         private String name;
@@ -27,6 +29,7 @@ public class EquipmentDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(name = "EquipmentDto_PostInputDto", description = "DTO pour la création d'un équipement")
     public static class PostInputDto {
 
         @NotNull
@@ -44,6 +47,7 @@ public class EquipmentDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(name = "EquipmentDto_PostOutputDto", description = "DTO pour la réponse après la création d'un équipement")
     public static class PostOutputDto {
 
         private Long idEquipment;

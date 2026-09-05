@@ -3,6 +3,7 @@ package fr.louison.gestionsallespringapi.employee.dto;
 import fr.louison.gestionsallespringapi.department.model.DepartmentEntity;
 import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
 import fr.louison.gestionsallespringapi.employee.model.enums.EmployeeRole;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,6 +15,7 @@ public class EmployeeDto {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @Schema(name = "EmployeeDto_GetEmployeeDto", description = "Récupérer les informations d'une personne")
     public static class GetEmployeeDto {
         private Long id;
         private String firstName;
@@ -26,6 +28,7 @@ public class EmployeeDto {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @Schema(name = "EmployeeDto_PostInputDto", description = "DTO pour la création d'une personne")
     public static class PostInputDto {
         @NotBlank(message = "Le prénom ne peut pas être vide")
         private String firstName;
@@ -51,6 +54,7 @@ public class EmployeeDto {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
+    @Schema(name = "EmployeeDto_PostOutputDto", description = "DTO pour la réponse après la création d'une personne")
     public static class PostOutputDto {
         private Long id;
         private String firstName;

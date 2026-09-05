@@ -1,6 +1,7 @@
 package fr.louison.gestionsallespringapi.recurrence.dto;
 
 import fr.louison.gestionsallespringapi.recurrence.model.enums.RecurrenceType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -18,6 +19,7 @@ public class RecurrenceDto {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
+    @Schema(name = "RecurrenceDto_PostInputDto", description = "DTO pour la création d'une récurrence")
     public static class PostInputDto {
 
         @NotNull(message = "Le type de récurrence est obligatoire")
@@ -35,6 +37,7 @@ public class RecurrenceDto {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
+    @Schema(name = "RecurrenceDto_PostOutputDto", description = "DTO pour la réponse après la création d'une récurrence")
     public static class PostOutputDto {
 
         private Long id;
