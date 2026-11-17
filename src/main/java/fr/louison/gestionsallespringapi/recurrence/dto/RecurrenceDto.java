@@ -25,6 +25,7 @@ public class RecurrenceDto {
         @NotNull(message = "Le type de récurrence est obligatoire")
         private RecurrenceType type;
 
+        @NotNull(message = "La valeur d'intervalle est obligatoire")
         @Min(value = 1, message = "La valeur d'interval doit être supérieur à 0")
         private Integer intervalValue;
         

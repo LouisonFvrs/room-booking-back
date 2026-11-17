@@ -4,53 +4,82 @@ import fr.louison.gestionsallespringapi.exception.BadRequestException;
 import fr.louison.gestionsallespringapi.recurrence.dto.RecurrenceDto;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import fr.louison.gestionsallespringapi.recurrence.repository.RecurrenceRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class RecurrenceService {
 
-    @Autowired
-    private RecurrenceRepository recurrenceRepository;
+    // A daily recurrence over one year; beyond that a series is almost certainly a mistake
+    // and would create thousands of rows in a single request.
+    public static final int MAX_OCCURRENCES = 366;
 
-    public List<RecurrenceDto.PostOutputDto> getRecurrences(){
-        List<RecurrenceEntity> recurrences = recurrenceRepository.findAll();
-        return recurrences.stream()
-                .map(recurrence -> RecurrenceDto.PostOutputDto.builder()
-                        .id(recurrence.getIdRecurrence())
-                        .type(recurrence.getType())
-                        .intervalValue(recurrence.getIntervalValue())
-                        .endDate(recurrence.getEndDate())
-                        .build()
-                )
+    private final RecurrenceRepository recurrenceRepository;
+
+    public List<RecurrenceDto.PostOutputDto> getRecurrences() {
+        return recurrenceRepository.findAll().stream()
+                .map(this::mapToPostOutputDto)
                 .toList();
     }
 
     public RecurrenceDto.PostOutputDto createRecurrence(RecurrenceDto.PostInputDto postInputDto) {
-
-        if (postInputDto.getIntervalValue() != null && postInputDto.getIntervalValue() < 1) {
-            throw new BadRequestException("L'intervalle de récurrence doit être au moins égal à 1.");
-        }
-
-        if (postInputDto.getEndDate() != null && postInputDto.getEndDate().isBefore(LocalDate.now())) {
+        if (postInputDto.getEndDate().isBefore(LocalDate.now())) {
             throw new BadRequestException("La date de fin de récurrence doit être une date future.");
         }
-        
+
         RecurrenceEntity recurrence = RecurrenceEntity.builder()
                 .type(postInputDto.getType())
                 .intervalValue(postInputDto.getIntervalValue())
                 .endDate(postInputDto.getEndDate())
                 .build();
 
-        RecurrenceEntity savedRecurrence = recurrenceRepository.save(recurrence);
-
-        return mapToPostOutputDto(savedRecurrence);
+        return mapToPostOutputDto(recurrenceRepository.save(recurrence));
     }
 
-    // Méthode helper de mapping privée réutilisable
+    /**
+     * Start of every occurrence of a series, the first one included, up to the recurrence end date.
+     */
+    public List<LocalDateTime> computeOccurrenceStarts(RecurrenceEntity recurrence, LocalDateTime firstStart) {
+        if (recurrence.getIntervalValue() < 1) {
+            throw new BadRequestException("L'intervalle de récurrence doit être au moins égal à 1.");
+        }
+        if (recurrence.getEndDate().isBefore(firstStart.toLocalDate())) {
+            throw new BadRequestException("La récurrence se termine avant le début de la réservation.");
+        }
+
+        List<LocalDateTime> starts = new ArrayList<>();
+        for (int index = 0; ; index++) {
+            LocalDateTime start = occurrenceStart(recurrence, firstStart, index);
+            if (start.toLocalDate().isAfter(recurrence.getEndDate())) {
+                return starts;
+            }
+            if (starts.size() == MAX_OCCURRENCES) {
+                throw new BadRequestException(
+                        "La récurrence génère plus de " + MAX_OCCURRENCES + " occurrences, réduisez la période ou augmentez l'intervalle."
+                );
+            }
+            starts.add(start);
+        }
+    }
+
+    // Each occurrence is computed from the first start rather than from the previous one:
+    // a monthly series starting on the 31st would otherwise drift to the 28th for good after February.
+    private LocalDateTime occurrenceStart(RecurrenceEntity recurrence, LocalDateTime firstStart, int index) {
+        long step = (long) index * recurrence.getIntervalValue();
+
+        return switch (recurrence.getType()) {
+            case DAILY -> firstStart.plusDays(step);
+            case WEEKLY -> firstStart.plusWeeks(step);
+            case MONTHLY -> firstStart.plusMonths(step);
+        };
+    }
+
     private RecurrenceDto.PostOutputDto mapToPostOutputDto(RecurrenceEntity recurrence) {
         return RecurrenceDto.PostOutputDto.builder()
                 .id(recurrence.getIdRecurrence())

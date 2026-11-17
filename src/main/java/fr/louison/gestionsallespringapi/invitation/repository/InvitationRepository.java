@@ -6,10 +6,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
-
 @Repository
 public interface InvitationRepository extends JpaRepository<InvitationEntity, Long> {
 
-    public Page<InvitationEntity> findByBooking(Pageable pageable, Long id);
+    Page<InvitationEntity> findByBooking_IdBooking(Long idBooking, Pageable pageable);
+
+    Page<InvitationEntity> findByEmployeeAttendee_IdEmployee(Long idEmployee, Pageable pageable);
 }

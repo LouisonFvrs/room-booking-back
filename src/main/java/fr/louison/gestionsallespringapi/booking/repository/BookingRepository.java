@@ -14,6 +14,10 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
     public List<BookingEntity> findAllByEmployeeOrganizer_IdEmployee(Long id);
 
+    List<BookingEntity> findAllByRecurrence_IdRecurrenceOrderByStartDateAsc(Long idRecurrence);
+
+    boolean existsByRecurrence_IdRecurrence(Long idRecurrence);
+
     @Query("""
         SELECT COUNT(b) > 0 
         FROM booking b 
