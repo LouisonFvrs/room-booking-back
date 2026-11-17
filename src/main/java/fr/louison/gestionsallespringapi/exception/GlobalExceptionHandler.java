@@ -2,19 +2,25 @@ package fr.louison.gestionsallespringapi.exception;
 
 import fr.louison.gestionsallespringapi.exception.dto.ErrorResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -59,19 +65,42 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDto> handleValidationExceptions(MethodArgumentNotValidException exception, HttpServletRequest request) {
-        Map<String, String> errors = new HashMap<>();
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
         exception.getBindingResult().getFieldErrors().forEach((fieldError) ->
-                errors.put(fieldError.getField(), fieldError.getDefaultMessage()));
+                fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage()));
+
+        // The message is shown as is to the user: it carries the sentences only, the field
+        // names stay in fieldErrors for clients that want to place each one next to its input.
+        String message = fieldErrors.values().stream().distinct().collect(Collectors.joining(". "));
 
         ErrorResponseDto error = ErrorResponseDto.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
                 .error("Validation Failed")
-                .message(errors.toString())
+                .message(message)
                 .path(request.getRequestURI())
+                .fieldErrors(fieldErrors)
                 .build();
 
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponseDto> handleUnreadableBody(HttpMessageNotReadableException exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "Bad request", "Le contenu envoyé est illisible ou mal formé.", request);
+    }
+
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    public ResponseEntity<ErrorResponseDto> handleInvalidParameter(Exception exception, HttpServletRequest request) {
+        return error(HttpStatus.BAD_REQUEST, "Bad request", "Un paramètre de la requête est manquant ou invalide.", request);
+    }
+
+    // Reached when a row still referenced elsewhere is deleted: the database message names
+    // tables and constraints, which the caller has no use for.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponseDto> handleDataIntegrity(DataIntegrityViolationException exception, HttpServletRequest request) {
+        log.warn("Data integrity violation on {}", request.getRequestURI(), exception);
+        return error(HttpStatus.CONFLICT, "Conflict", "Cette donnée est encore utilisée ailleurs et ne peut pas être modifiée ou supprimée.", request);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -101,16 +130,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
 
+    // The exception message can expose class names, SQL or stack details: it goes to the logs,
+    // the caller only learns that the failure is not theirs.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleGlobalException(Exception exception, HttpServletRequest request) {
+        log.error("Unexpected error on {}", request.getRequestURI(), exception);
+        return error(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error", "Une erreur interne est survenue. Réessayez plus tard.", request);
+    }
+
+    private ResponseEntity<ErrorResponseDto> error(HttpStatus status, String label, String message, HttpServletRequest request) {
         ErrorResponseDto error = ErrorResponseDto.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message(exception.getMessage())
+                .status(status.value())
+                .error(label)
+                .message(message)
                 .path(request.getRequestURI())
                 .build();
 
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(error, status);
     }
 }
