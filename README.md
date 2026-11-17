@@ -105,6 +105,8 @@ Toute la configuration passe par des variables d'environnement, lues par `src/ma
 | `SPRING_JPA_HIBERNATE_DDL_AUTO` | Doit rester à `validate` : le schéma appartient à Liquibase |
 | `JWT_SECRET` | Clé de signature des tokens, 256 bits minimum |
 | `JWT_EXPIRATION_MS` | Durée de vie d'un token, en millisecondes |
+| `CORS_ALLOWED_ORIGINS` | Origines des fronts autorisés à appeler l'API, séparées par des virgules |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Premier administrateur, créé au démarrage si aucun employé n'existe |
 
 Générer une clé JWT :
 
@@ -120,7 +122,7 @@ Le schéma est géré par Liquibase. Les changelogs sont dans `src/main/resource
 - Ne jamais modifier un changeset déjà appliqué.
 - Une base créée avant l'arrivée de Liquibase est reprise telle quelle : le changelog initial ignore les tables qui existent déjà.
 
-Aucun compte n'est créé automatiquement. Sur une base neuve, il faut insérer un premier administrateur dans la table `employee` (mot de passe haché en BCrypt) avant de pouvoir se connecter.
+Sur une base sans aucun employé, l'application crée au démarrage un premier administrateur à partir de `ADMIN_EMAIL` et `ADMIN_PASSWORD`. Si ces variables sont vides, aucun compte n'est créé et personne ne peut se connecter.
 
 ## Rôles
 
