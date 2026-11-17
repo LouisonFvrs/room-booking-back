@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: gestion-salle-app
+    container_name: room-booking-app
     ports:
       - "8080:8080"
     environment:
@@ -19,7 +19,7 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: gestion-salle-db
+    container_name: room-booking-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

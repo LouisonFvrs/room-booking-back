@@ -1,11 +1,11 @@
-# Gestion de salles — API REST
+# Room Booking — API REST
 
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-26-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![JWT](https://img.shields.io/badge/JWT-Authentication-000000?style=for-the-badge&logo=JSON%20web%20tokens)](https://jwt.io/)
 
-API REST de réservation de salles de réunion en entreprise. Les employés réservent des salles équipées, y invitent leurs collègues, et peuvent planifier des réunions récurrentes. Le front associé est [gestion-salle-frontend](https://github.com/LouisonFvrs/gestion-salle-frontend) (Angular).
+API REST de réservation de salles de réunion en entreprise. Les employés réservent des salles équipées, y invitent leurs collègues, et peuvent planifier des réunions récurrentes. Le front associé est [room-booking-front](https://github.com/LouisonFvrs/room-booking-front) (Angular).
 
 ## Sommaire
 
@@ -50,8 +50,8 @@ Prérequis : Docker et Docker Compose.
 1. Cloner le dépôt :
 
    ```bash
-   git clone https://github.com/LouisonFvrs/gestionSalleSpringApi.git
-   cd gestionSalleSpringApi
+   git clone https://github.com/LouisonFvrs/room-booking-back.git
+   cd room-booking-back
    ```
 
 2. Créer le fichier d'environnement, puis y renseigner le mot de passe PostgreSQL et la clé JWT (voir [Configuration](#configuration)) :
