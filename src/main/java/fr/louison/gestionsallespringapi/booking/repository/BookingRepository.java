@@ -18,6 +18,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
     boolean existsByRecurrence_IdRecurrence(Long idRecurrence);
 
+    boolean existsByRoom_IdRoom(Long idRoom);
+
     @Query("""
         SELECT b
         FROM booking b
