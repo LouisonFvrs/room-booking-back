@@ -1,7 +1,6 @@
 package fr.louison.gestionsallespringapi.invitation.dto;
 
-import fr.louison.gestionsallespringapi.booking.model.BookingEntity;
-import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
+import fr.louison.gestionsallespringapi.booking.model.enums.BookingStatus;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -48,8 +47,12 @@ public class InvitationDto {
     @Schema(name = "InvitationDto_GetOutputDto", description = "DTO pour la réponse après la récupération d'une invitation")
     public static class BookingSimpleDto {
         private Long idBooking;
+        private String title;
+        private BookingStatus status;
         private LocalDateTime startTime;
         private LocalDateTime endTime;
+        private String roomName;
+        private String organizerName;
     }
 
     // DTO court pour l'invité
