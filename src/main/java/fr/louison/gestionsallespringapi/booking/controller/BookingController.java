@@ -70,6 +70,15 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.update(bookingDto, id, currentEmployeeId(currentUser)));
     }
 
+    @PatchMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<BookingDto.PostOutputDto> cancel(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(bookingService.cancel(id, currentEmployeeId(currentUser)));
+    }
+
     private Long currentEmployeeId(CustomUserDetails currentUser) {
         return currentUser.getEmployee().getIdEmployee();
     }

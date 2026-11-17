@@ -1,7 +1,9 @@
 package fr.louison.gestionsallespringapi.invitation.service;
 
+import fr.louison.gestionsallespringapi.booking.model.enums.BookingStatus;
 import fr.louison.gestionsallespringapi.booking.repository.BookingRepository;
 import fr.louison.gestionsallespringapi.exception.BadRequestException;
+import fr.louison.gestionsallespringapi.exception.RessourceConflictException;
 import fr.louison.gestionsallespringapi.exception.RessourceNotFoundException;
 import fr.louison.gestionsallespringapi.invitation.dto.InvitationDto;
 import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
@@ -44,6 +46,9 @@ public class InvitationService {
 
         if (!invitation.getEmployeeAttendee().getIdEmployee().equals(currentEmployeeId)) {
             throw new AccessDeniedException("Seul l'invité peut répondre à son invitation.");
+        }
+        if (invitation.getBooking().getStatus() == BookingStatus.CANCELLED) {
+            throw new RessourceConflictException("La réunion a été annulée, l'invitation n'attend plus de réponse.");
         }
         if (invitationDto.getStatus() == InvitationStatus.PENDING) {
             throw new BadRequestException("Une réponse doit être ACCEPTED ou DECLINED.");

@@ -87,11 +87,24 @@ public class BookingService {
         return mapToPostOutputDto(bookingRepository.save(booking));
     }
 
+    // Cancelling keeps the booking as history and frees the slot: overlap checks
+    // ignore cancelled bookings.
+    public BookingDto.PostOutputDto cancel(Long id, Long currentEmployeeId) {
+        BookingEntity booking = findBooking(id);
+        assertCanManage(booking, findEmployee(currentEmployeeId));
+        assertNotCancelled(booking);
+
+        booking.setStatus(BookingStatus.CANCELLED);
+
+        return mapToPostOutputDto(bookingRepository.save(booking));
+    }
+
     public BookingDto.PostOutputDto update(BookingDto.PostInputDto bookingDto, Long idBooking, Long currentEmployeeId) {
         assertValidSlot(bookingDto.getStartDate(), bookingDto.getEndDate());
 
         BookingEntity booking = findBooking(idBooking);
         assertCanManage(booking, findEmployee(currentEmployeeId));
+        assertNotCancelled(booking);
 
         RoomEntity room = findRoom(bookingDto.getIdRoom());
 
@@ -127,6 +140,12 @@ public class BookingService {
     private void assertValidSlot(LocalDateTime startDate, LocalDateTime endDate) {
         if (!endDate.isAfter(startDate)) {
             throw new BadRequestException("La date de fin doit être strictement supérieure à la date de début.");
+        }
+    }
+
+    private void assertNotCancelled(BookingEntity booking) {
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new RessourceConflictException("La réservation " + booking.getIdBooking() + " est annulée.");
         }
     }
 
