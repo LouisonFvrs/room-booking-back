@@ -43,6 +43,7 @@ public class EquipmentService {
         return mapToPostOutputDto(equipment);
     }
 
+    @Transactional
     public EquipmentDto.PostOutputDto createEquipment(EquipmentDto.PostInputDto inputDto) {
 
         if (inputDto.getSerialNumber() != null && equipmentRepository.existsBySerialNumber(inputDto.getSerialNumber())) {
@@ -61,10 +62,14 @@ public class EquipmentService {
         EquipmentEntity equipment = EquipmentEntity.builder()
                 .name(inputDto.getName())
                 .serialNumber(inputDto.getSerialNumber())
-                .rooms(rooms)
+                .rooms(new ArrayList<>())
                 .build();
 
         EquipmentEntity savedEquipment = equipmentRepository.save(equipment);
+
+        // The room owns the association: setting it on the equipment side alone is never written
+        // to the join table.
+        rooms.forEach(room -> room.addEquipment(savedEquipment));
 
         return mapToPostOutputDto(savedEquipment);
     }
