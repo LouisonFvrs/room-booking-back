@@ -65,7 +65,7 @@ Puis éditer `.env` pour renseigner un mot de passe PostgreSQL et une clé secr�
 ```bash
    docker compose up --build
 ```
-Cette commande construit l'image de l'API, démarre un conteneur PostgreSQL, puis démarre l'application. Les tables sont créées automatiquement au premier lancement.
+Cette commande construit l'image de l'API, démarre un conteneur PostgreSQL, puis démarre l'application. Le schéma est créé et migré par Liquibase au démarrage (`src/main/resources/db/changelog`).
 
 4. **Accéder à l'API** :
    L'API est disponible sur `http://localhost:8080`.

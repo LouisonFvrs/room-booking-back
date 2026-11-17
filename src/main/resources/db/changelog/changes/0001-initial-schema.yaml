@@ -1,0 +1,279 @@
+# Schema as Hibernate generated it while the project ran with ddl-auto=update.
+# Every changeset is skipped (MARK_RAN) when its table already exists, so a database
+# created before Liquibase is adopted as-is instead of failing on "table already exists".
+databaseChangeLog:
+  - changeSet:
+      id: 0001-create-department
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: department
+      changes:
+        - createTable:
+            tableName: department
+            columns:
+              - column:
+                  name: id_department
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_department
+              - column:
+                  name: name
+                  type: varchar(255)
+
+  - changeSet:
+      id: 0001-create-employee
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: employee
+      changes:
+        - createTable:
+            tableName: employee
+            columns:
+              - column:
+                  name: id_employee
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_employee
+              - column:
+                  name: first_name
+                  type: varchar(255)
+              - column:
+                  name: last_name
+                  type: varchar(255)
+              - column:
+                  name: email
+                  type: varchar(255)
+              - column:
+                  name: password
+                  type: varchar(255)
+              - column:
+                  name: role
+                  type: varchar(255)
+              - column:
+                  name: id_department
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_employee_department
+                    references: department(id_department)
+
+  - changeSet:
+      id: 0001-create-equipment
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: equipment
+      changes:
+        - createTable:
+            tableName: equipment
+            columns:
+              - column:
+                  name: id_equipment
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_equipment
+              - column:
+                  name: name
+                  type: varchar(255)
+              - column:
+                  name: serial_number
+                  type: varchar(255)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_equipment_serial_number
+
+  - changeSet:
+      id: 0001-create-room
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: room
+      changes:
+        - createTable:
+            tableName: room
+            columns:
+              - column:
+                  name: id_room
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_room
+              - column:
+                  name: name
+                  type: varchar(255)
+              - column:
+                  name: capacity
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_available
+                  type: boolean
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 0001-create-room-equipment
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: room_equipment
+      changes:
+        - createTable:
+            tableName: room_equipment
+            columns:
+              - column:
+                  name: id_room
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_room_equipment_room
+                    references: room(id_room)
+              - column:
+                  name: id_equipment
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_room_equipment_equipment
+                    references: equipment(id_equipment)
+
+  - changeSet:
+      id: 0001-create-recurrence
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: recurrence
+      changes:
+        - createTable:
+            tableName: recurrence
+            columns:
+              - column:
+                  name: id_recurrence
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_recurrence
+              - column:
+                  name: type
+                  type: varchar(255)
+              - column:
+                  name: interval_value
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_date
+                  type: date
+
+  - changeSet:
+      id: 0001-create-booking
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: booking
+      changes:
+        - createTable:
+            tableName: booking
+            columns:
+              - column:
+                  name: id_booking
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_booking
+              - column:
+                  name: title
+                  type: varchar(255)
+              - column:
+                  name: description
+                  type: varchar(255)
+              - column:
+                  name: start_date
+                  type: timestamp
+              - column:
+                  name: end_date
+                  type: timestamp
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: id_room
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_booking_room
+                    references: room(id_room)
+              - column:
+                  name: id_organizer
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_booking_organizer
+                    references: employee(id_employee)
+              - column:
+                  name: id_recurrence
+                  type: bigint
+                  constraints:
+                    foreignKeyName: fk_booking_recurrence
+                    references: recurrence(id_recurrence)
+
+  - changeSet:
+      id: 0001-create-invitation
+      author: louison
+      preConditions:
+        - onFail: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: invitation
+      changes:
+        - createTable:
+            tableName: invitation
+            columns:
+              - column:
+                  name: id_invitation
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_invitation
+              - column:
+                  name: status
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: id_booking
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_invitation_booking
+                    references: booking(id_booking)
+              - column:
+                  name: id_attendee
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_invitation_attendee
+                    references: employee(id_employee)
