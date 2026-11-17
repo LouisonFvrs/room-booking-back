@@ -1,4 +1,6 @@
 package fr.louison.gestionsallespringapi.employee.controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import fr.louison.gestionsallespringapi.auth.CustomUserDetails;
 import fr.louison.gestionsallespringapi.employee.dto.EmployeeDto;
 import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
 import fr.louison.gestionsallespringapi.employee.repository.EmployeeRepository;
@@ -42,16 +44,21 @@ public class EmployeeController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<EmployeeDto.PostOutputDto> createEmployee(
-            @Valid @RequestBody EmployeeDto.PostInputDto postInputDto
+            @Valid @RequestBody EmployeeDto.PostInputDto postInputDto,
+            @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        EmployeeDto.PostOutputDto createdEmployee = employeeService.createEmployee(postInputDto);
+        EmployeeDto.PostOutputDto createdEmployee =
+                employeeService.createEmployee(postInputDto, currentUser.getEmployee().getIdEmployee());
         return ResponseEntity.status(HttpStatus.CREATED).body(createdEmployee);
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        employeeService.deleteEmployee(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        employeeService.deleteEmployee(id, currentUser.getEmployee().getIdEmployee());
         return ResponseEntity.noContent().build();
     }
 }

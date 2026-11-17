@@ -20,6 +20,8 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
 
     boolean existsByRoom_IdRoom(Long idRoom);
 
+    boolean existsByEmployeeOrganizer_IdEmployee(Long idEmployee);
+
     @Query("""
         SELECT b
         FROM booking b

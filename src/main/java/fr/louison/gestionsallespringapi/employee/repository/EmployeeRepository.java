@@ -16,5 +16,7 @@ public interface EmployeeRepository extends JpaRepository<EmployeeEntity, Long> 
 
     public Optional<EmployeeEntity> findByEmail(String email);
 
+    boolean existsByDepartment_IdDepartment(Long idDepartment);
+
     boolean existsByEmail(@NotBlank(message = "L'email ne peut pas être vide") @Email(message = "L'email doit avoir un format valide") String email);
 }

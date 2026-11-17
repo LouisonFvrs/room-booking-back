@@ -1,5 +1,10 @@
 package fr.louison.gestionsallespringapi.employee.service;
 
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
+import fr.louison.gestionsallespringapi.invitation.repository.InvitationRepository;
+import fr.louison.gestionsallespringapi.exception.BadRequestException;
+import fr.louison.gestionsallespringapi.booking.repository.BookingRepository;
 import fr.louison.gestionsallespringapi.department.model.DepartmentEntity;
 import fr.louison.gestionsallespringapi.department.repository.DepartmentRepository;
 import fr.louison.gestionsallespringapi.employee.dto.EmployeeDto;
@@ -29,6 +34,11 @@ public class EmployeeService {
     private DepartmentRepository departmentRepository;
 
     @Autowired
+    private BookingRepository bookingRepository;
+    @Autowired
+    private InvitationRepository invitationRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     public Page<EmployeeDto.GetEmployeeDto> findAll(Pageable pageable) {
@@ -44,7 +54,8 @@ public class EmployeeService {
         return mapToGetEmployeeDto(employee);
     }
 
-    public EmployeeDto.PostOutputDto createEmployee(EmployeeDto.PostInputDto input) {
+    public EmployeeDto.PostOutputDto createEmployee(EmployeeDto.PostInputDto input, Long currentEmployeeId) {
+        assertCanManageRole(findEmployee(currentEmployeeId), input.getRole());
 
         if (employeeRepository.existsByEmail(input.getEmail())) {
             throw new RessourceConflictException("Un employé avec l'email '" + input.getEmail() + "' existe déjà.");
@@ -69,11 +80,39 @@ public class EmployeeService {
 
 
 
-    public void deleteEmployee(Long id) {
+    @Transactional
+    public void deleteEmployee(Long id, Long currentEmployeeId) {
         EmployeeEntity employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new RessourceNotFoundException("Employé non trouvé !"));
 
+        if (employee.getIdEmployee().equals(currentEmployeeId)) {
+            throw new BadRequestException("Vous ne pouvez pas supprimer votre propre compte.");
+        }
+        assertCanManageRole(findEmployee(currentEmployeeId), employee.getRole());
+
+        // The meetings an employee organized would lose their organizer: they must be dealt with first.
+        if (bookingRepository.existsByEmployeeOrganizer_IdEmployee(id)) {
+            throw new RessourceConflictException(
+                    employee.getFirstName() + " " + employee.getLastName()
+                            + " organise des réunions et ne peut pas être supprimé."
+            );
+        }
+
+        invitationRepository.deleteByEmployeeAttendee_IdEmployee(id);
         employeeRepository.delete(employee);
+    }
+
+    // A manager handles employee accounts only: without this, a manager could create an
+    // administrator account, or delete one, and so grant themselves any right.
+    private void assertCanManageRole(EmployeeEntity currentEmployee, EmployeeRole targetRole) {
+        if (currentEmployee.getRole() != EmployeeRole.ROLE_ADMIN && targetRole != EmployeeRole.ROLE_EMPLOYEE) {
+            throw new AccessDeniedException("Seul un administrateur peut gérer les comptes administrateur et manager.");
+        }
+    }
+
+    private EmployeeEntity findEmployee(Long id) {
+        return employeeRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("Employé introuvable avec l'ID : " + id));
     }
 
     // Méthode helper réutilisable dans tout le service
@@ -84,6 +123,7 @@ public class EmployeeService {
                 .lastName(emp.getLastName())
                 .email(emp.getEmail())
                 .role(emp.getRole())
+                .departmentName(emp.getDepartment() != null ? emp.getDepartment().getName() : null)
                 .build();
     }
 
