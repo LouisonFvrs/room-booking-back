@@ -1,7 +1,9 @@
 package fr.louison.gestionsallespringapi.invitation.service;
 
+import fr.louison.gestionsallespringapi.booking.model.BookingEntity;
 import fr.louison.gestionsallespringapi.booking.model.enums.BookingStatus;
 import fr.louison.gestionsallespringapi.booking.repository.BookingRepository;
+import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
 import fr.louison.gestionsallespringapi.exception.BadRequestException;
 import fr.louison.gestionsallespringapi.exception.RessourceConflictException;
 import fr.louison.gestionsallespringapi.exception.RessourceNotFoundException;
@@ -60,13 +62,20 @@ public class InvitationService {
     }
 
     private InvitationDto.PostOutputDto mapToPostOutputDto(InvitationEntity invitation) {
+        BookingEntity booking = invitation.getBooking();
+        EmployeeEntity organizer = booking.getEmployeeOrganizer();
+
         return InvitationDto.PostOutputDto.builder()
                 .id(invitation.getIdInvitation())
                 .status(invitation.getStatus())
                 .booking(InvitationDto.BookingSimpleDto.builder()
-                        .idBooking(invitation.getBooking().getIdBooking())
-                        .startTime(invitation.getBooking().getStartDate())
-                        .endTime(invitation.getBooking().getEndDate())
+                        .idBooking(booking.getIdBooking())
+                        .title(booking.getTitle())
+                        .status(booking.getStatus())
+                        .startTime(booking.getStartDate())
+                        .endTime(booking.getEndDate())
+                        .roomName(booking.getRoom() != null ? booking.getRoom().getName() : null)
+                        .organizerName(organizer != null ? organizer.getFirstName() + " " + organizer.getLastName() : null)
                         .build())
                 .attendee(InvitationDto.EmployeeSimpleDto.builder()
                         .idEmployee(invitation.getEmployeeAttendee().getIdEmployee())

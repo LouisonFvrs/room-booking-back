@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: gestion-salle-app
+    container_name: room-booking-app
     ports:
       - "8080:8080"
     environment:
@@ -11,6 +11,9 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
@@ -19,7 +22,7 @@ services:
 
   db:
     image: postgres:16-alpine
-    container_name: gestion-salle-db
+    container_name: room-booking-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}

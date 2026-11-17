@@ -9,6 +9,7 @@ import fr.louison.gestionsallespringapi.employee.model.enums.EmployeeRole;
 import fr.louison.gestionsallespringapi.employee.repository.EmployeeRepository;
 import fr.louison.gestionsallespringapi.exception.BadRequestException;
 import fr.louison.gestionsallespringapi.exception.RessourceConflictException;
+import fr.louison.gestionsallespringapi.recurrence.dto.RecurrenceDto;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import fr.louison.gestionsallespringapi.recurrence.model.enums.RecurrenceType;
 import fr.louison.gestionsallespringapi.recurrence.repository.RecurrenceRepository;
@@ -124,6 +125,35 @@ class BookingServiceTest {
 
         assertThatThrownBy(() -> bookingService.create(input(RECURRENCE_ID), organizer.getIdEmployee()))
                 .isInstanceOf(RessourceConflictException.class);
+    }
+
+    @Test
+    void availabilityFlagsTheOccupiedOccurrencesOfASeries() {
+        when(bookingRepository.existsOverlappingBooking(ROOM_ID, START.plusWeeks(1), END.plusWeeks(1))).thenReturn(true);
+
+        BookingDto.AvailabilityOutputDto availability = bookingService.checkAvailability(
+                BookingDto.AvailabilityInputDto.builder()
+                        .idRoom(ROOM_ID)
+                        .startDate(START)
+                        .endDate(END)
+                        .recurrence(RecurrenceDto.PostInputDto.builder()
+                                .type(RecurrenceType.WEEKLY)
+                                .intervalValue(1)
+                                .endDate(LocalDate.of(2030, 1, 21))
+                                .build())
+                        .build());
+
+        assertThat(availability.isAvailable()).isFalse();
+        assertThat(availability.getSlots()).extracting(BookingDto.SlotDto::isAvailable).containsExactly(true, false, true);
+    }
+
+    @Test
+    void availabilityOfASingleFreeSlot() {
+        BookingDto.AvailabilityOutputDto availability = bookingService.checkAvailability(
+                BookingDto.AvailabilityInputDto.builder().idRoom(ROOM_ID).startDate(START).endDate(END).build());
+
+        assertThat(availability.isAvailable()).isTrue();
+        assertThat(availability.getSlots()).hasSize(1);
     }
 
     @Test

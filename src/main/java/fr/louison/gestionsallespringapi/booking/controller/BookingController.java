@@ -5,12 +5,14 @@ import fr.louison.gestionsallespringapi.booking.dto.BookingDto;
 import fr.louison.gestionsallespringapi.booking.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -32,6 +34,22 @@ public class BookingController {
             @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
         return ResponseEntity.ok(bookingService.getByOrganizer(currentEmployeeId(currentUser)));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    @GetMapping("/planning")
+    public ResponseEntity<List<BookingDto.PostOutputDto>> getPlanning(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return ResponseEntity.ok(bookingService.getPlanning(date));
+    }
+
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    @PostMapping("/availability")
+    public ResponseEntity<BookingDto.AvailabilityOutputDto> checkAvailability(
+            @Valid @RequestBody BookingDto.AvailabilityInputDto input
+    ) {
+        return ResponseEntity.ok(bookingService.checkAvailability(input));
     }
 
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")

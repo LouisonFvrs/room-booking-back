@@ -6,7 +6,7 @@ plugins {
 
 group = 'fr.louison'
 version = '0.0.1-SNAPSHOT'
-description = 'gestionSalleSpringApi'
+description = 'room-booking-back'
 
 java {
     toolchain {

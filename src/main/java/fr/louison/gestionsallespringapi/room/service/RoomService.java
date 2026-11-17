@@ -1,5 +1,6 @@
 package fr.louison.gestionsallespringapi.room.service;
 
+import fr.louison.gestionsallespringapi.booking.repository.BookingRepository;
 import fr.louison.gestionsallespringapi.equipment.dto.EquipmentDto;
 import fr.louison.gestionsallespringapi.equipment.model.EquipmentEntity;
 import fr.louison.gestionsallespringapi.equipment.repository.EquipmentRepository;
@@ -30,6 +31,9 @@ public class RoomService {
 
     @Autowired
     private EquipmentRepository equipmentRepository;
+
+    @Autowired
+    private BookingRepository bookingRepository;
 
     public Page<RoomDto.PostOutputDto> findAll(Pageable pageable) {
         Page<RoomEntity> rooms = roomRepository.findAll(pageable);
@@ -80,6 +84,13 @@ public class RoomService {
     public void deleteById(Long id) {
         RoomEntity room = roomRepository.findById(id)
                 .orElseThrow(() -> new RessourceNotFoundException("La salle est introuvable avec l'ID : " + id));
+
+        // Bookings, cancelled ones included, keep pointing at their room as history.
+        if (bookingRepository.existsByRoom_IdRoom(id)) {
+            throw new RessourceConflictException(
+                    "La salle " + room.getName() + " a des réservations et ne peut pas être supprimée."
+            );
+        }
 
         roomRepository.delete(room);
     }

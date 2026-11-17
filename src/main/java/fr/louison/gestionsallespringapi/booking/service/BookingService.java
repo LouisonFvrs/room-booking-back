@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -62,6 +63,48 @@ public class BookingService {
         return findSeries(idRecurrence).stream()
                 .map(this::mapToPostOutputDto)
                 .toList();
+    }
+
+    /** Bookings that are not cancelled and overlap the given day, for every room. */
+    @Transactional(readOnly = true)
+    public List<BookingDto.PostOutputDto> getPlanning(LocalDate day) {
+        return bookingRepository.findActiveBetween(day.atStartOfDay(), day.plusDays(1).atStartOfDay()).stream()
+                .map(this::mapToPostOutputDto)
+                .toList();
+    }
+
+    /**
+     * Tells, for a slot and each occurrence of its optional recurrence, whether the room is free.
+     * Nothing is stored: it lets a client warn about conflicts before creating the booking.
+     */
+    @Transactional(readOnly = true)
+    public BookingDto.AvailabilityOutputDto checkAvailability(BookingDto.AvailabilityInputDto input) {
+        assertValidSlot(input.getStartDate(), input.getEndDate());
+        RoomEntity room = findRoom(input.getIdRoom());
+
+        List<LocalDateTime> starts = input.getRecurrence() != null
+                ? recurrenceService.computeOccurrenceStarts(
+                        RecurrenceEntity.builder()
+                                .type(input.getRecurrence().getType())
+                                .intervalValue(input.getRecurrence().getIntervalValue())
+                                .endDate(input.getRecurrence().getEndDate())
+                                .build(),
+                        input.getStartDate())
+                : List.of(input.getStartDate());
+        Duration duration = Duration.between(input.getStartDate(), input.getEndDate());
+
+        List<BookingDto.SlotDto> slots = starts.stream()
+                .map(start -> BookingDto.SlotDto.builder()
+                        .startDate(start)
+                        .endDate(start.plus(duration))
+                        .available(!bookingRepository.existsOverlappingBooking(room.getIdRoom(), start, start.plus(duration)))
+                        .build())
+                .toList();
+
+        return BookingDto.AvailabilityOutputDto.builder()
+                .available(slots.stream().allMatch(BookingDto.SlotDto::isAvailable))
+                .slots(slots)
+                .build();
     }
 
     public void delete(Long id, Long currentEmployeeId) {
