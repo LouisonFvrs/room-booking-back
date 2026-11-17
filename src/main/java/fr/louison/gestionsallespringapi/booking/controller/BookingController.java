@@ -79,6 +79,21 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.cancel(id, currentEmployeeId(currentUser)));
     }
 
+    @GetMapping("/recurrence/{idRecurrence}")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<List<BookingDto.PostOutputDto>> getSeries(@PathVariable Long idRecurrence) {
+        return ResponseEntity.ok(bookingService.getByRecurrence(idRecurrence));
+    }
+
+    @PatchMapping("/recurrence/{idRecurrence}/cancel")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
+    public ResponseEntity<List<BookingDto.PostOutputDto>> cancelSeries(
+            @PathVariable Long idRecurrence,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(bookingService.cancelSeries(idRecurrence, currentEmployeeId(currentUser)));
+    }
+
     private Long currentEmployeeId(CustomUserDetails currentUser) {
         return currentUser.getEmployee().getIdEmployee();
     }

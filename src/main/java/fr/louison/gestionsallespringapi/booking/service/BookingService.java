@@ -14,6 +14,7 @@ import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import fr.louison.gestionsallespringapi.recurrence.repository.RecurrenceRepository;
+import fr.louison.gestionsallespringapi.recurrence.service.RecurrenceService;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import fr.louison.gestionsallespringapi.room.repository.RoomRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +37,9 @@ public class BookingService {
     private final RoomRepository roomRepository;
     private final EmployeeRepository employeeRepository;
     private final RecurrenceRepository recurrenceRepository;
+    private final RecurrenceService recurrenceService;
+
+    private static final DateTimeFormatter CONFLICT_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     @Transactional(readOnly = true)
     public BookingDto.PostOutputDto getBooking(Long id) {
@@ -51,6 +57,13 @@ public class BookingService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<BookingDto.PostOutputDto> getByRecurrence(Long idRecurrence) {
+        return findSeries(idRecurrence).stream()
+                .map(this::mapToPostOutputDto)
+                .toList();
+    }
+
     public void delete(Long id, Long currentEmployeeId) {
         BookingEntity booking = findBooking(id);
         assertCanManage(booking, findEmployee(currentEmployeeId));
@@ -58,33 +71,66 @@ public class BookingService {
         bookingRepository.delete(booking);
     }
 
+    /**
+     * Creates the booking, or every occurrence of the series when a recurrence is given.
+     * The series is all-or-nothing: a single occupied slot rejects the whole request.
+     *
+     * @return the first occurrence
+     */
     public BookingDto.PostOutputDto create(BookingDto.PostInputDto bookingDto, Long currentEmployeeId) {
         assertValidSlot(bookingDto.getStartDate(), bookingDto.getEndDate());
 
         RoomEntity room = findRoom(bookingDto.getIdRoom());
         EmployeeEntity organizer = findEmployee(currentEmployeeId);
         RecurrenceEntity recurrence = bookingDto.getIdRecurrence() != null
-                ? findRecurrence(bookingDto.getIdRecurrence())
+                ? findUnusedRecurrence(bookingDto.getIdRecurrence())
                 : null;
 
-        if (bookingRepository.existsOverlappingBooking(room.getIdRoom(), bookingDto.getStartDate(), bookingDto.getEndDate())) {
-            throw new RessourceConflictException("La salle " + room.getName() + " est déjà réservée sur ce créneau horaire.");
-        }
+        List<LocalDateTime> starts = recurrence != null
+                ? recurrenceService.computeOccurrenceStarts(recurrence, bookingDto.getStartDate())
+                : List.of(bookingDto.getStartDate());
+        Duration duration = Duration.between(bookingDto.getStartDate(), bookingDto.getEndDate());
 
-        BookingEntity booking = BookingEntity.builder()
-                .title(bookingDto.getTitle())
-                .description(bookingDto.getDescription())
-                .startDate(bookingDto.getStartDate())
-                .endDate(bookingDto.getEndDate())
-                .status(BookingStatus.CONFIRMED)
-                .room(room)
-                .employeeOrganizer(organizer)
-                .recurrence(recurrence)
-                .invitations(new ArrayList<>())
-                .build();
-        booking.getInvitations().addAll(buildInvitations(booking, bookingDto.getInvitationIds()));
+        assertRoomFree(room, starts, duration);
 
-        return mapToPostOutputDto(bookingRepository.save(booking));
+        List<BookingEntity> bookings = starts.stream()
+                .map(start -> {
+                    BookingEntity booking = BookingEntity.builder()
+                            .title(bookingDto.getTitle())
+                            .description(bookingDto.getDescription())
+                            .startDate(start)
+                            .endDate(start.plus(duration))
+                            .status(BookingStatus.CONFIRMED)
+                            .room(room)
+                            .employeeOrganizer(organizer)
+                            .recurrence(recurrence)
+                            .invitations(new ArrayList<>())
+                            .build();
+                    booking.getInvitations().addAll(buildInvitations(booking, bookingDto.getInvitationIds()));
+                    return booking;
+                })
+                .toList();
+
+        return mapToPostOutputDto(bookingRepository.saveAll(bookings).getFirst());
+    }
+
+    /**
+     * Cancels the occurrences of a series that have not started yet; past ones stay as history.
+     */
+    public List<BookingDto.PostOutputDto> cancelSeries(Long idRecurrence, Long currentEmployeeId) {
+        List<BookingEntity> series = findSeries(idRecurrence);
+        assertCanManage(series.getFirst(), findEmployee(currentEmployeeId));
+
+        LocalDateTime now = LocalDateTime.now();
+        List<BookingEntity> upcoming = series.stream()
+                .filter(booking -> booking.getStatus() != BookingStatus.CANCELLED)
+                .filter(booking -> booking.getStartDate().isAfter(now))
+                .toList();
+        upcoming.forEach(booking -> booking.setStatus(BookingStatus.CANCELLED));
+
+        return bookingRepository.saveAll(upcoming).stream()
+                .map(this::mapToPostOutputDto)
+                .toList();
     }
 
     // Cancelling keeps the booking as history and frees the slot: overlap checks
@@ -118,16 +164,13 @@ public class BookingService {
             throw new RessourceConflictException("La salle " + room.getName() + " est occupée sur ce créneau.");
         }
 
-        RecurrenceEntity recurrence = bookingDto.getIdRecurrence() != null
-                ? findRecurrence(bookingDto.getIdRecurrence())
-                : null;
+        assertRecurrenceUnchanged(booking, bookingDto.getIdRecurrence());
 
         booking.setTitle(bookingDto.getTitle());
         booking.setDescription(bookingDto.getDescription());
         booking.setStartDate(bookingDto.getStartDate());
         booking.setEndDate(bookingDto.getEndDate());
         booking.setRoom(room);
-        booking.setRecurrence(recurrence);
 
         if (bookingDto.getInvitationIds() != null) {
             booking.getInvitations().clear();
@@ -140,6 +183,29 @@ public class BookingService {
     private void assertValidSlot(LocalDateTime startDate, LocalDateTime endDate) {
         if (!endDate.isAfter(startDate)) {
             throw new BadRequestException("La date de fin doit être strictement supérieure à la date de début.");
+        }
+    }
+
+    private void assertRoomFree(RoomEntity room, List<LocalDateTime> starts, Duration duration) {
+        List<String> occupiedSlots = starts.stream()
+                .filter(start -> bookingRepository.existsOverlappingBooking(room.getIdRoom(), start, start.plus(duration)))
+                .map(CONFLICT_DATE_FORMAT::format)
+                .toList();
+
+        if (!occupiedSlots.isEmpty()) {
+            throw new RessourceConflictException(
+                    "La salle " + room.getName() + " est déjà réservée sur : " + String.join(", ", occupiedSlots) + "."
+            );
+        }
+    }
+
+    // A series is generated once, at creation. Moving one occurrence is allowed,
+    // re-attaching it to another recurrence would leave both series inconsistent.
+    private void assertRecurrenceUnchanged(BookingEntity booking, Long requestedIdRecurrence) {
+        Long currentIdRecurrence = booking.getRecurrence() != null ? booking.getRecurrence().getIdRecurrence() : null;
+
+        if (requestedIdRecurrence != null && !requestedIdRecurrence.equals(currentIdRecurrence)) {
+            throw new BadRequestException("La récurrence d'une réservation existante ne peut pas être modifiée.");
         }
     }
 
@@ -191,9 +257,26 @@ public class BookingService {
                 .orElseThrow(() -> new RessourceNotFoundException("Employé introuvable avec l'ID : " + id));
     }
 
-    private RecurrenceEntity findRecurrence(Long id) {
-        return recurrenceRepository.findById(id)
+    // One recurrence describes one series: sharing it would make "cancel the series"
+    // hit bookings that belong to someone else.
+    private RecurrenceEntity findUnusedRecurrence(Long id) {
+        RecurrenceEntity recurrence = recurrenceRepository.findById(id)
                 .orElseThrow(() -> new RessourceNotFoundException("Récurrence introuvable avec l'ID : " + id));
+
+        if (bookingRepository.existsByRecurrence_IdRecurrence(id)) {
+            throw new RessourceConflictException("La récurrence " + id + " est déjà rattachée à une série de réservations.");
+        }
+
+        return recurrence;
+    }
+
+    private List<BookingEntity> findSeries(Long idRecurrence) {
+        List<BookingEntity> series = bookingRepository.findAllByRecurrence_IdRecurrenceOrderByStartDateAsc(idRecurrence);
+        if (series.isEmpty()) {
+            throw new RessourceNotFoundException("Aucune réservation pour la récurrence avec l'ID : " + idRecurrence);
+        }
+
+        return series;
     }
 
     private BookingDto.PostOutputDto mapToPostOutputDto(BookingEntity booking) {
