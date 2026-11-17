@@ -1,5 +1,6 @@
 package fr.louison.gestionsallespringapi.department.service;
 
+import fr.louison.gestionsallespringapi.employee.repository.EmployeeRepository;
 import fr.louison.gestionsallespringapi.department.dto.DepartmentDto;
 import fr.louison.gestionsallespringapi.department.model.DepartmentEntity;
 import fr.louison.gestionsallespringapi.department.repository.DepartmentRepository;
@@ -16,6 +17,9 @@ public class DepartmentService {
 
     @Autowired
     private DepartmentRepository departmentRepository;
+
+    @Autowired
+    private EmployeeRepository employeeRepository;
 
     public List<DepartmentDto.PostOutputDto> getDepartments() {
         List<DepartmentEntity> departments = departmentRepository.findAll();
@@ -41,11 +45,16 @@ public class DepartmentService {
     }
 
     public void deleteDepartment(Long id) {
-        if (!departmentRepository.existsById(id)) {
-            throw new RessourceNotFoundException("Département introuvable avec l'ID : " + id);
+        DepartmentEntity department = departmentRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("Département introuvable avec l'ID : " + id));
+
+        if (employeeRepository.existsByDepartment_IdDepartment(id)) {
+            throw new RessourceConflictException(
+                    "Le département " + department.getName() + " compte encore des employés et ne peut pas être supprimé."
+            );
         }
 
-        departmentRepository.deleteById(id);
+        departmentRepository.delete(department);
     }
 
 

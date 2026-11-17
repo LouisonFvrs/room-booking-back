@@ -12,4 +12,6 @@ public interface InvitationRepository extends JpaRepository<InvitationEntity, Lo
     Page<InvitationEntity> findByBooking_IdBooking(Long idBooking, Pageable pageable);
 
     Page<InvitationEntity> findByEmployeeAttendee_IdEmployee(Long idEmployee, Pageable pageable);
+
+    void deleteByEmployeeAttendee_IdEmployee(Long idEmployee);
 }

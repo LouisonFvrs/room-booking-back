@@ -129,8 +129,8 @@ Sur une base sans aucun employé, l'application crée au démarrage un premier a
 | Rôle | Peut |
 |---|---|
 | `ROLE_EMPLOYEE` | Consulter le référentiel et les réservations, voir ses invitations et y répondre |
-| `ROLE_MANAGER` | En plus : créer des réservations et des récurrences, gérer les employés et créer des départements |
-| `ROLE_ADMIN` | En plus : gérer les salles et les équipements, supprimer des départements, agir sur les réservations de tous |
+| `ROLE_MANAGER` | En plus : créer des réservations et des récurrences, créer et supprimer des comptes employé, créer des départements |
+| `ROLE_ADMIN` | En plus : gérer les salles et les équipements, gérer les comptes manager et administrateur, supprimer des départements, agir sur les réservations de tous |
 
 Une requête sans token valide reçoit `401`, une requête sans le rôle requis reçoit `403`.
 

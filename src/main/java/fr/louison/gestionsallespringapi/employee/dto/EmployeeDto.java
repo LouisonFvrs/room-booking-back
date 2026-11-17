@@ -22,6 +22,7 @@ public class EmployeeDto {
         private String lastName;
         private String email;
         private EmployeeRole role;
+        private String departmentName;
     }
 
     @Data
