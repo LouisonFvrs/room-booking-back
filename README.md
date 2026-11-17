@@ -150,6 +150,8 @@ Tous les endpoints sont préfixés par `/api` et attendent l'en-tête `Authoriza
 |---|---|---|---|
 | GET | `/bookings/{id}` | Tous | Détail d'une réservation |
 | GET | `/bookings/me` | Tous | Réservations organisées par l'utilisateur connecté |
+| GET | `/bookings/planning?date=AAAA-MM-JJ` | Tous | Réservations non annulées de toutes les salles sur une journée |
+| POST | `/bookings/availability` | Admin, manager | Disponibilité d'une salle sur un créneau et sur chaque occurrence de sa récurrence |
 | GET | `/bookings/organisateur/{id}` | Admin, manager | Réservations d'un organisateur |
 | GET | `/bookings/recurrence/{idRecurrence}` | Tous | Occurrences d'une série |
 | POST | `/bookings` | Admin, manager | Crée une réservation, ou toute une série si `idRecurrence` est fourni |

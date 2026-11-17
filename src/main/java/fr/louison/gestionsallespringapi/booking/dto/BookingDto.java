@@ -2,8 +2,10 @@ package fr.louison.gestionsallespringapi.booking.dto;
 
 import fr.louison.gestionsallespringapi.booking.model.enums.BookingStatus;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
+import fr.louison.gestionsallespringapi.recurrence.dto.RecurrenceDto;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -84,4 +86,45 @@ public class BookingDto {
     @NoArgsConstructor
     @Schema(name = "BookingDto_InvitationSummaryDto")
     public static class InvitationSummaryDto { private Long id; private InvitationStatus status; private Long attendeeId; }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @Schema(name = "BookingDto_AvailabilityInputDto", description = "Créneau, éventuellement récurrent, dont on veut connaître la disponibilité")
+    public static class AvailabilityInputDto {
+
+        @NotNull(message = "La salle est obligatoire")
+        private Long idRoom;
+
+        @NotNull(message = "La date de début est obligatoire")
+        private LocalDateTime startDate;
+
+        @NotNull(message = "La date de fin est obligatoire")
+        private LocalDateTime endDate;
+
+        @Valid
+        private RecurrenceDto.PostInputDto recurrence;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @Schema(name = "BookingDto_AvailabilityOutputDto", description = "Disponibilité de la salle sur chaque occurrence")
+    public static class AvailabilityOutputDto {
+        private boolean available;
+        private List<SlotDto> slots;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @Schema(name = "BookingDto_SlotDto")
+    public static class SlotDto {
+        private LocalDateTime startDate;
+        private LocalDateTime endDate;
+        private boolean available;
+    }
 }

@@ -19,6 +19,16 @@ public interface BookingRepository extends JpaRepository<BookingEntity, Long> {
     boolean existsByRecurrence_IdRecurrence(Long idRecurrence);
 
     @Query("""
+        SELECT b
+        FROM booking b
+        WHERE b.status != 'CANCELLED'
+          AND b.startDate < :end
+          AND b.endDate > :start
+        ORDER BY b.startDate
+    """)
+    List<BookingEntity> findActiveBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("""
         SELECT COUNT(b) > 0 
         FROM booking b 
         WHERE b.room.idRoom = :roomId 
