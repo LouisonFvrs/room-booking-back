@@ -5,6 +5,7 @@ import fr.louison.gestionsallespringapi.booking.model.BookingEntity;
 import fr.louison.gestionsallespringapi.booking.model.enums.BookingStatus;
 import fr.louison.gestionsallespringapi.booking.repository.BookingRepository;
 import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
+import fr.louison.gestionsallespringapi.employee.model.enums.EmployeeRole;
 import fr.louison.gestionsallespringapi.employee.repository.EmployeeRepository;
 import fr.louison.gestionsallespringapi.exception.BadRequestException;
 import fr.louison.gestionsallespringapi.exception.RessourceConflictException;
@@ -15,137 +16,59 @@ import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
 import fr.louison.gestionsallespringapi.recurrence.repository.RecurrenceRepository;
 import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import fr.louison.gestionsallespringapi.room.repository.RoomRepository;
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class BookingService {
 
-    @Autowired
-    private BookingRepository bookingRepository;
+    private final BookingRepository bookingRepository;
+    private final RoomRepository roomRepository;
+    private final EmployeeRepository employeeRepository;
+    private final RecurrenceRepository recurrenceRepository;
 
-    @Autowired
-    private RoomRepository roomRepository;
-
-    @Autowired
-    private EmployeeRepository employeeRepository;
-
-    @Autowired
-    private RecurrenceRepository recurrenceRepository;
-
-    public BookingDto.PostOutputDto getBooking(Long id){
-        BookingEntity booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new RessourceNotFoundException("Réservation introuvable avec l'ID : " + id));
-
-        return BookingDto.PostOutputDto.builder()
-                .id(booking.getIdBooking())
-                .title(booking.getTitle())
-                .description(booking.getDescription())
-                .startDate(booking.getStartDate())
-                .endDate(booking.getEndDate())
-                .status(booking.getStatus())
-                .recurrence(booking.getRecurrence())
-                .room(booking.getRoom() != null ? BookingDto.RoomSummaryDto.builder()
-                                                  .id(booking.getRoom().getIdRoom())
-                                                  .name(booking.getRoom().getName())
-                                                  .build() : null)
-                .organizer(booking.getEmployeeOrganizer() != null ? BookingDto.EmployeeSummaryDto.builder()
-                                                                    .id(booking.getEmployeeOrganizer().getIdEmployee())
-                                                                    .firstName(booking.getEmployeeOrganizer().getFirstName())
-                                                                    .lastName(booking.getEmployeeOrganizer().getLastName())
-                                                                    .build() : null)
-                .invitations(booking.getInvitations().stream()
-                        .map(invitation -> BookingDto.InvitationSummaryDto.builder()
-                                .id(invitation.getIdInvitation())
-                                .status(invitation.getStatus())
-                                .attendeeId(invitation.getEmployeeAttendee().getIdEmployee())
-                                .build())
-                        .toList())
-                .build();
+    @Transactional(readOnly = true)
+    public BookingDto.PostOutputDto getBooking(Long id) {
+        return mapToPostOutputDto(findBooking(id));
     }
 
+    @Transactional(readOnly = true)
     public List<BookingDto.PostOutputDto> getByOrganizer(Long id) {
         if (!employeeRepository.existsById(id)) {
             throw new RessourceNotFoundException("Employé/Organisateur introuvable avec l'ID : " + id);
         }
 
-        List<BookingEntity> bookings = bookingRepository.findAllByEmployeeOrganizer_IdEmployee(id);
-
-        return bookings.stream()
+        return bookingRepository.findAllByEmployeeOrganizer_IdEmployee(id).stream()
                 .map(this::mapToPostOutputDto)
                 .toList();
     }
 
-    private BookingDto.PostOutputDto mapToPostOutputDto(BookingEntity booking) {
-        return BookingDto.PostOutputDto.builder()
-                .id(booking.getIdBooking())
-                .title(booking.getTitle())
-                .description(booking.getDescription())
-                .startDate(booking.getStartDate())
-                .endDate(booking.getEndDate())
-                .status(booking.getStatus())
-                .recurrence(booking.getRecurrence())
-                .room(booking.getRoom() != null ? BookingDto.RoomSummaryDto.builder()
-                                                  .id(booking.getRoom().getIdRoom())
-                                                  .name(booking.getRoom().getName())
-                                                  .build() : null)
-                .organizer(booking.getEmployeeOrganizer() != null ? BookingDto.EmployeeSummaryDto.builder()
-                                                                    .id(booking.getEmployeeOrganizer().getIdEmployee())
-                                                                    .firstName(booking.getEmployeeOrganizer().getFirstName())
-                                                                    .lastName(booking.getEmployeeOrganizer().getLastName())
-                                                                    .build() : null)
-                .invitations(booking.getInvitations() != null ? booking.getInvitations().stream()
-                                                                .map(invitation -> BookingDto.InvitationSummaryDto.builder()
-                                                                                   .id(invitation.getIdInvitation())
-                                                                                   .status(invitation.getStatus())
-                                                                                   .attendeeId(invitation.getEmployeeAttendee().getIdEmployee())
-                                                                                   .build())
-                                                                .toList() : Collections.emptyList())
-                .build();
+    public void delete(Long id, Long currentEmployeeId) {
+        BookingEntity booking = findBooking(id);
+        assertCanManage(booking, findEmployee(currentEmployeeId));
+
+        bookingRepository.delete(booking);
     }
 
-    public void delete(Long id) {
-        if (!bookingRepository.existsById(id)) {
-            throw new RessourceNotFoundException("Réservation introuvable avec l'ID : " + id);
-        }
-        bookingRepository.deleteById(id);
-    }
+    public BookingDto.PostOutputDto create(BookingDto.PostInputDto bookingDto, Long currentEmployeeId) {
+        assertValidSlot(bookingDto.getStartDate(), bookingDto.getEndDate());
 
-    public BookingDto.PostOutputDto create(BookingDto.PostInputDto bookingDto) {
+        RoomEntity room = findRoom(bookingDto.getIdRoom());
+        EmployeeEntity organizer = findEmployee(currentEmployeeId);
+        RecurrenceEntity recurrence = bookingDto.getIdRecurrence() != null
+                ? findRecurrence(bookingDto.getIdRecurrence())
+                : null;
 
-        if (bookingDto.getEndDate().isBefore(bookingDto.getStartDate())
-                || bookingDto.getEndDate().isEqual(bookingDto.getStartDate())) {
-            throw new BadRequestException("La date de fin doit être strictement supérieure à la date de début.");
-        }
-
-        RoomEntity room = roomRepository.findById(bookingDto.getIdRoom())
-                .orElseThrow(() -> new RessourceNotFoundException("Salle introuvable avec l'ID : " + bookingDto.getIdRoom()));
-
-        boolean isOccupied = bookingRepository.existsOverlappingBooking(
-                bookingDto.getIdRoom(),
-                bookingDto.getStartDate(),
-                bookingDto.getEndDate()
-        );
-
-        if (isOccupied) {
+        if (bookingRepository.existsOverlappingBooking(room.getIdRoom(), bookingDto.getStartDate(), bookingDto.getEndDate())) {
             throw new RessourceConflictException("La salle " + room.getName() + " est déjà réservée sur ce créneau horaire.");
-        }
-
-        EmployeeEntity organizer = employeeRepository.findById(bookingDto.getIdOrganizer())
-                .orElseThrow(() -> new RessourceNotFoundException("Organisateur introuvable avec l'ID : " + bookingDto.getIdOrganizer()));
-
-        RecurrenceEntity recurrence = null;
-        if (bookingDto.getIdRecurrence() != null) {
-            recurrence = recurrenceRepository.findById(bookingDto.getIdRecurrence())
-                    .orElseThrow(() -> new RessourceNotFoundException("Récurrence introuvable avec l'ID : " + bookingDto.getIdRecurrence()));
         }
 
         BookingEntity booking = BookingEntity.builder()
@@ -159,92 +82,132 @@ public class BookingService {
                 .recurrence(recurrence)
                 .invitations(new ArrayList<>())
                 .build();
+        booking.getInvitations().addAll(buildInvitations(booking, bookingDto.getInvitationIds()));
 
-        if (bookingDto.getInvitationIds() != null && !bookingDto.getInvitationIds().isEmpty()) {
-            List<InvitationEntity> invitations = bookingDto.getInvitationIds().stream()
-                    .map(userId -> {
-                        EmployeeEntity attendee = employeeRepository.findById(userId)
-                                .orElseThrow(() -> new RessourceNotFoundException("Invité introuvable avec l'ID : " + userId));
-
-                        return InvitationEntity.builder()
-                                .status(InvitationStatus.PENDING)
-                                .booking(booking)
-                                .employeeAttendee(attendee)
-                                .build();
-                    })
-                    .toList();
-
-            booking.getInvitations().addAll(invitations);
-        }
-
-        BookingEntity savedBooking = bookingRepository.save(booking);
-
-        return mapToPostOutputDto(savedBooking);
+        return mapToPostOutputDto(bookingRepository.save(booking));
     }
 
-    public BookingDto.PostOutputDto update(BookingDto.PostInputDto bookingDto, Long idBooking) {
+    public BookingDto.PostOutputDto update(BookingDto.PostInputDto bookingDto, Long idBooking, Long currentEmployeeId) {
+        assertValidSlot(bookingDto.getStartDate(), bookingDto.getEndDate());
 
-        if (bookingDto.getEndDate().isBefore(bookingDto.getStartDate())
-                || bookingDto.getEndDate().isEqual(bookingDto.getStartDate())) {
-            throw new BadRequestException("La date de fin doit être strictement supérieure à la date de début.");
-        }
+        BookingEntity booking = findBooking(idBooking);
+        assertCanManage(booking, findEmployee(currentEmployeeId));
 
-        BookingEntity booking = bookingRepository.findById(idBooking)
-                .orElseThrow(() -> new RessourceNotFoundException("Réservation introuvable avec l'ID : " + idBooking));
-
-        RoomEntity room = roomRepository.findById(bookingDto.getIdRoom())
-                .orElseThrow(() -> new RessourceNotFoundException("Salle introuvable avec l'ID : " + bookingDto.getIdRoom()));
+        RoomEntity room = findRoom(bookingDto.getIdRoom());
 
         boolean isOccupied = bookingRepository.existsOverlappingBookingExcludingCurrent(
-                bookingDto.getIdRoom(),
+                room.getIdRoom(),
                 idBooking,
                 bookingDto.getStartDate(),
                 bookingDto.getEndDate()
         );
-
         if (isOccupied) {
             throw new RessourceConflictException("La salle " + room.getName() + " est occupée sur ce créneau.");
         }
 
-        EmployeeEntity organizer = employeeRepository.findById(bookingDto.getIdOrganizer())
-                .orElseThrow(() -> new RessourceNotFoundException("Organisateur introuvable avec l'ID : " + bookingDto.getIdOrganizer()));
-
-        RecurrenceEntity recurrence = null;
-        if (bookingDto.getIdRecurrence() != null) {
-            recurrence = recurrenceRepository.findById(bookingDto.getIdRecurrence())
-                    .orElseThrow(() -> new RessourceNotFoundException("Récurrence introuvable avec l'ID : " + bookingDto.getIdRecurrence()));
-        }
+        RecurrenceEntity recurrence = bookingDto.getIdRecurrence() != null
+                ? findRecurrence(bookingDto.getIdRecurrence())
+                : null;
 
         booking.setTitle(bookingDto.getTitle());
         booking.setDescription(bookingDto.getDescription());
         booking.setStartDate(bookingDto.getStartDate());
         booking.setEndDate(bookingDto.getEndDate());
         booking.setRoom(room);
-        booking.setEmployeeOrganizer(organizer);
         booking.setRecurrence(recurrence);
 
         if (bookingDto.getInvitationIds() != null) {
             booking.getInvitations().clear();
-
-            List<InvitationEntity> newInvitations = bookingDto.getInvitationIds().stream()
-                    .map(employeeId -> {
-                        EmployeeEntity attendee = employeeRepository.findById(employeeId)
-                                .orElseThrow(() -> new RessourceNotFoundException("Invité introuvable avec l'ID : " + employeeId));
-
-                        return InvitationEntity.builder()
-                                .status(InvitationStatus.PENDING)
-                                .booking(booking)
-                                .employeeAttendee(attendee)
-                                .build();
-                    })
-                    .toList();
-
-            booking.getInvitations().addAll(newInvitations);
+            booking.getInvitations().addAll(buildInvitations(booking, bookingDto.getInvitationIds()));
         }
 
-        BookingEntity updatedBooking = bookingRepository.save(booking);
-        return mapToPostOutputDto(updatedBooking);
+        return mapToPostOutputDto(bookingRepository.save(booking));
     }
 
+    private void assertValidSlot(LocalDateTime startDate, LocalDateTime endDate) {
+        if (!endDate.isAfter(startDate)) {
+            throw new BadRequestException("La date de fin doit être strictement supérieure à la date de début.");
+        }
+    }
 
+    // Only the organizer or an administrator may change a booking, whatever role
+    // gave access to the endpoint.
+    private void assertCanManage(BookingEntity booking, EmployeeEntity currentEmployee) {
+        boolean isOrganizer = booking.getEmployeeOrganizer() != null
+                && booking.getEmployeeOrganizer().getIdEmployee().equals(currentEmployee.getIdEmployee());
+
+        if (!isOrganizer && currentEmployee.getRole() != EmployeeRole.ROLE_ADMIN) {
+            throw new AccessDeniedException("Seul l'organisateur ou un administrateur peut modifier cette réservation.");
+        }
+    }
+
+    private List<InvitationEntity> buildInvitations(BookingEntity booking, List<Long> attendeeIds) {
+        if (attendeeIds == null) {
+            return List.of();
+        }
+
+        return attendeeIds.stream()
+                .distinct()
+                .map(attendeeId -> InvitationEntity.builder()
+                        .status(InvitationStatus.PENDING)
+                        .booking(booking)
+                        .employeeAttendee(employeeRepository.findById(attendeeId)
+                                .orElseThrow(() -> new RessourceNotFoundException("Invité introuvable avec l'ID : " + attendeeId)))
+                        .build())
+                .toList();
+    }
+
+    private BookingEntity findBooking(Long id) {
+        return bookingRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("Réservation introuvable avec l'ID : " + id));
+    }
+
+    private RoomEntity findRoom(Long id) {
+        return roomRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("Salle introuvable avec l'ID : " + id));
+    }
+
+    private EmployeeEntity findEmployee(Long id) {
+        return employeeRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("Employé introuvable avec l'ID : " + id));
+    }
+
+    private RecurrenceEntity findRecurrence(Long id) {
+        return recurrenceRepository.findById(id)
+                .orElseThrow(() -> new RessourceNotFoundException("Récurrence introuvable avec l'ID : " + id));
+    }
+
+    private BookingDto.PostOutputDto mapToPostOutputDto(BookingEntity booking) {
+        return BookingDto.PostOutputDto.builder()
+                .id(booking.getIdBooking())
+                .title(booking.getTitle())
+                .description(booking.getDescription())
+                .startDate(booking.getStartDate())
+                .endDate(booking.getEndDate())
+                .status(booking.getStatus())
+                .recurrence(booking.getRecurrence())
+                .room(booking.getRoom() != null
+                        ? BookingDto.RoomSummaryDto.builder()
+                                .id(booking.getRoom().getIdRoom())
+                                .name(booking.getRoom().getName())
+                                .build()
+                        : null)
+                .organizer(booking.getEmployeeOrganizer() != null
+                        ? BookingDto.EmployeeSummaryDto.builder()
+                                .id(booking.getEmployeeOrganizer().getIdEmployee())
+                                .firstName(booking.getEmployeeOrganizer().getFirstName())
+                                .lastName(booking.getEmployeeOrganizer().getLastName())
+                                .build()
+                        : null)
+                .invitations(booking.getInvitations() != null
+                        ? booking.getInvitations().stream()
+                                .map(invitation -> BookingDto.InvitationSummaryDto.builder()
+                                        .id(invitation.getIdInvitation())
+                                        .status(invitation.getStatus())
+                                        .attendeeId(invitation.getEmployeeAttendee().getIdEmployee())
+                                        .build())
+                                .toList()
+                        : List.of())
+                .build();
+    }
 }

@@ -1,53 +1,59 @@
 package fr.louison.gestionsallespringapi.invitation.service;
 
-import fr.louison.gestionsallespringapi.booking.model.BookingEntity;
 import fr.louison.gestionsallespringapi.booking.repository.BookingRepository;
-import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
-import fr.louison.gestionsallespringapi.employee.repository.EmployeeRepository;
+import fr.louison.gestionsallespringapi.exception.BadRequestException;
 import fr.louison.gestionsallespringapi.exception.RessourceNotFoundException;
 import fr.louison.gestionsallespringapi.invitation.dto.InvitationDto;
 import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
 import fr.louison.gestionsallespringapi.invitation.repository.InvitationRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
+@Transactional
 @Service
+@RequiredArgsConstructor
 public class InvitationService {
 
-    @Autowired
-    private InvitationRepository invitationRepository;
+    private final InvitationRepository invitationRepository;
+    private final BookingRepository bookingRepository;
 
-    @Autowired
-    private BookingRepository bookingRepository;
-
+    @Transactional(readOnly = true)
     public Page<InvitationDto.PostOutputDto> getInvitationsByBooking(Pageable pageable, Long bookingId) {
-
         if (!bookingRepository.existsById(bookingId)) {
             throw new RessourceNotFoundException("Réservation introuvable avec l'ID : " + bookingId);
         }
 
-        Page<InvitationEntity> invitations = invitationRepository.findByBooking(pageable, bookingId);
-
-        return invitations.map(this::mapToPostOutputDto);
+        return invitationRepository.findByBooking_IdBooking(bookingId, pageable)
+                .map(this::mapToPostOutputDto);
     }
 
-    public InvitationDto.PostOutputDto updateInvitation(Long id, InvitationDto.PutInputDto invitationDto) {
+    @Transactional(readOnly = true)
+    public Page<InvitationDto.PostOutputDto> getInvitationsByAttendee(Pageable pageable, Long attendeeId) {
+        return invitationRepository.findByEmployeeAttendee_IdEmployee(attendeeId, pageable)
+                .map(this::mapToPostOutputDto);
+    }
 
+    public InvitationDto.PostOutputDto updateInvitation(Long id, InvitationDto.PutInputDto invitationDto, Long currentEmployeeId) {
         InvitationEntity invitation = invitationRepository.findById(id)
                 .orElseThrow(() -> new RessourceNotFoundException("Invitation introuvable avec l'ID : " + id));
 
+        if (!invitation.getEmployeeAttendee().getIdEmployee().equals(currentEmployeeId)) {
+            throw new AccessDeniedException("Seul l'invité peut répondre à son invitation.");
+        }
+        if (invitationDto.getStatus() == InvitationStatus.PENDING) {
+            throw new BadRequestException("Une réponse doit être ACCEPTED ou DECLINED.");
+        }
+
         invitation.setStatus(invitationDto.getStatus());
 
-        InvitationEntity updatedInvitation = invitationRepository.save(invitation);
-        
-        return mapToPostOutputDto(updatedInvitation);
+        return mapToPostOutputDto(invitationRepository.save(invitation));
     }
 
-    // Méthode helper de mapping réutilisable
     private InvitationDto.PostOutputDto mapToPostOutputDto(InvitationEntity invitation) {
         return InvitationDto.PostOutputDto.builder()
                 .id(invitation.getIdInvitation())

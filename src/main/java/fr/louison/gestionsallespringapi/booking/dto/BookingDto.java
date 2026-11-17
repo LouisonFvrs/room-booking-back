@@ -1,11 +1,8 @@
 package fr.louison.gestionsallespringapi.booking.dto;
 
 import fr.louison.gestionsallespringapi.booking.model.enums.BookingStatus;
-import fr.louison.gestionsallespringapi.employee.model.EmployeeEntity;
-import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
 import fr.louison.gestionsallespringapi.invitation.model.enums.InvitationStatus;
 import fr.louison.gestionsallespringapi.recurrence.model.RecurrenceEntity;
-import fr.louison.gestionsallespringapi.room.model.RoomEntity;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
@@ -42,9 +39,6 @@ public class BookingDto {
 
         @NotNull(message = "La salle est obligatoire")
         private Long idRoom;
-
-        @NotNull(message = "L'organisateur est obligatoire")
-        private Long idOrganizer;
 
         private Long idRecurrence;
 

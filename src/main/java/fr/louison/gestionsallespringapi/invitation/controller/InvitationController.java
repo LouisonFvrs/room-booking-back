@@ -1,26 +1,35 @@
 package fr.louison.gestionsallespringapi.invitation.controller;
 
+import fr.louison.gestionsallespringapi.auth.CustomUserDetails;
 import fr.louison.gestionsallespringapi.invitation.dto.InvitationDto;
-import fr.louison.gestionsallespringapi.invitation.model.InvitationEntity;
 import fr.louison.gestionsallespringapi.invitation.service.InvitationService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Role;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/invitation")
+@RequiredArgsConstructor
 public class InvitationController {
 
-    @Autowired
-    private InvitationService invitationService;
+    private final InvitationService invitationService;
+
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<Page<InvitationDto.PostOutputDto>> getMyInvitations(
+            @PageableDefault(size = 20, page = 0) Pageable pageable,
+            @AuthenticationPrincipal CustomUserDetails currentUser
+    ) {
+        return ResponseEntity.ok(
+                invitationService.getInvitationsByAttendee(pageable, currentUser.getEmployee().getIdEmployee())
+        );
+    }
 
     @GetMapping("/booking/{bookingId}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER')")
@@ -28,17 +37,18 @@ public class InvitationController {
             @PageableDefault(size = 20, page = 0) Pageable pageable,
             @PathVariable Long bookingId
     ) {
-        Page<InvitationDto.PostOutputDto> invitations = invitationService.getInvitationsByBooking(pageable, bookingId);
-        return ResponseEntity.ok(invitations);
+        return ResponseEntity.ok(invitationService.getInvitationsByBooking(pageable, bookingId));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_EMPLOYEE')")
     public ResponseEntity<InvitationDto.PostOutputDto> updateInvitation(
             @PathVariable Long id,
-            @Valid @RequestBody InvitationDto.PutInputDto invitationDto
+            @Valid @RequestBody InvitationDto.PutInputDto invitationDto,
+            @AuthenticationPrincipal CustomUserDetails currentUser
     ) {
-        InvitationDto.PostOutputDto updatedInvitation = invitationService.updateInvitation(id, invitationDto);
-        return ResponseEntity.ok(updatedInvitation);
+        return ResponseEntity.ok(
+                invitationService.updateInvitation(id, invitationDto, currentUser.getEmployee().getIdEmployee())
+        );
     }
 }
