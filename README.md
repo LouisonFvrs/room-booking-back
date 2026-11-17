@@ -15,6 +15,7 @@ API REST de réservation de salles de réunion en entreprise. Les employés rés
 - [Démarrage en local](#démarrage-en-local)
 - [Configuration](#configuration)
 - [Base de données](#base-de-données)
+- [Mode démonstration](#mode-démonstration)
 - [Rôles](#rôles)
 - [Endpoints](#endpoints)
 - [Règles de gestion](#règles-de-gestion)
@@ -107,6 +108,7 @@ Toute la configuration passe par des variables d'environnement, lues par `src/ma
 | `JWT_EXPIRATION_MS` | Durée de vie d'un token, en millisecondes |
 | `CORS_ALLOWED_ORIGINS` | Origines des fronts autorisés à appeler l'API, séparées par des virgules |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Premier administrateur, créé au démarrage si aucun employé n'existe |
+| `DEMO_MODE`, `DEMO_PASSWORD` | Mode démonstration, désactivé par défaut (voir [Mode démonstration](#mode-démonstration)) |
 
 Générer une clé JWT :
 
@@ -123,6 +125,18 @@ Le schéma est géré par Liquibase. Les changelogs sont dans `src/main/resource
 - Une base créée avant l'arrivée de Liquibase est reprise telle quelle : le changelog initial ignore les tables qui existent déjà.
 
 Sur une base sans aucun employé, l'application crée au démarrage un premier administrateur à partir de `ADMIN_EMAIL` et `ADMIN_PASSWORD`. Si ces variables sont vides, aucun compte n'est créé et personne ne peut se connecter.
+
+## Mode démonstration
+
+Pour une installation de démonstration, par exemple un portfolio, `DEMO_MODE=true` et un `DEMO_PASSWORD` non vide activent un mode qui :
+
+- crée au démarrage trois comptes, un par rôle : `admin@demo.local`, `manager@demo.local` et `employe@demo.local`, tous avec le mot de passe `DEMO_PASSWORD` ;
+- ajoute, si aucune salle n'existe, trois salles, trois équipements et quelques réunions sur aujourd'hui et demain ;
+- expose ces comptes, mot de passe compris, sur `GET /api/auth/demo-accounts`, que le front affiche sur la page de connexion.
+
+Le mot de passe de ces comptes est donc **public** : n'importe quel visiteur peut se connecter, y compris en administrateur, et modifier ou supprimer les données. Ce mode ne doit jamais être activé sur une installation réelle. Désactivé, l'endpoint renvoie une liste vide et rien n'est créé.
+
+Les données de démonstration ne sont créées qu'une fois. Pour repartir d'un état propre, il faut vider la base.
 
 ## Rôles
 
@@ -143,6 +157,7 @@ Tous les endpoints sont préfixés par `/api` et attendent l'en-tête `Authoriza
 | Méthode | Chemin | Accès | Description |
 |---|---|---|---|
 | POST | `/auth/login` | Public | Renvoie un token à partir d'un email et d'un mot de passe |
+| GET | `/auth/demo-accounts` | Public | Comptes de démonstration, liste vide hors mode démonstration |
 
 ### Réservations
 
