@@ -44,6 +44,7 @@ class DemoResetServiceTest {
         order.verify(equipmentRepository).deleteAll();
         order.verify(employeeRepository).deleteAll();
         order.verify(departmentRepository).deleteAll();
+        order.verify(departmentRepository).flush();
         order.verify(demoDataSeeder).seed();
         order.verifyNoMoreInteractions();
     }

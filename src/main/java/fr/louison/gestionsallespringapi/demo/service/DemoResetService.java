@@ -49,6 +49,9 @@ public class DemoResetService {
         equipmentRepository.deleteAll();
         employeeRepository.deleteAll();
         departmentRepository.deleteAll();
+        // Hibernate sends inserts before deletes when it flushes: without this, the recreated demo accounts
+        // could reach the database while the old ones still hold their unique e-mails
+        departmentRepository.flush();
 
         // RG-5-03, RG-5-04: the initial data set, its meetings dated from today
         demoDataSeeder.seed();
