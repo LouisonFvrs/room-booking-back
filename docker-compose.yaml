@@ -16,6 +16,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       DEMO_MODE: ${DEMO_MODE:-false}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+      DEMO_RESET_CRON: ${DEMO_RESET_CRON:-0 0 3 * * *}
     depends_on:
       db:
         condition: service_healthy
