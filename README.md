@@ -139,6 +139,8 @@ Le mot de passe de ces comptes est donc **public** : n'importe quel visiteur peu
 
 Chaque nuit à 3 h (heure de Paris, réglable par `DEMO_RESET_CRON`), les données sont remises à leur état initial : tout est supprimé puis recréé, avec les réunions datées du jour. Ce que les visiteurs ont modifié ou supprimé disparaît, et un visiteur connecté à ce moment-là doit se reconnecter. Hors mode démonstration, cette remise à zéro ne fait rien.
 
+Sur la démo hébergée chez Render (offre gratuite), l'API s'endort après 15 minutes sans requête. Le workflow `.github/workflows/keep-demo-awake.yml` l'appelle toutes les 10 minutes sur `GET /api/auth/demo-accounts`, qui ne lit pas la base, pour la garder éveillée sans réveiller PostgreSQL.
+
 ## Rôles
 
 | Rôle | Peut |
