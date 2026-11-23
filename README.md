@@ -109,6 +109,7 @@ Toute la configuration passe par des variables d'environnement, lues par `src/ma
 | `CORS_ALLOWED_ORIGINS` | Origines des fronts autorisés à appeler l'API, séparées par des virgules |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Premier administrateur, créé au démarrage si aucun employé n'existe |
 | `DEMO_MODE`, `DEMO_PASSWORD` | Mode démonstration, désactivé par défaut (voir [Mode démonstration](#mode-démonstration)) |
+| `DEMO_RESET_CRON` | Heure de la remise à zéro des données de démonstration (cron Spring, heure de Paris), `0 0 3 * * *` par défaut |
 
 Générer une clé JWT :
 
@@ -136,7 +137,7 @@ Pour une installation de démonstration, par exemple un portfolio, `DEMO_MODE=tr
 
 Le mot de passe de ces comptes est donc **public** : n'importe quel visiteur peut se connecter, y compris en administrateur, et modifier ou supprimer les données. Ce mode ne doit jamais être activé sur une installation réelle. Désactivé, l'endpoint renvoie une liste vide et rien n'est créé.
 
-Les données de démonstration ne sont créées qu'une fois. Pour repartir d'un état propre, il faut vider la base.
+Chaque nuit à 3 h (heure de Paris, réglable par `DEMO_RESET_CRON`), les données sont remises à leur état initial : tout est supprimé puis recréé, avec les réunions datées du jour. Ce que les visiteurs ont modifié ou supprimé disparaît, et un visiteur connecté à ce moment-là doit se reconnecter. Hors mode démonstration, cette remise à zéro ne fait rien.
 
 ## Rôles
 
